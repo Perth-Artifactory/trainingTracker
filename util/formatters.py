@@ -247,6 +247,7 @@ def authed_machines_modal(
 
         if "all" in categories:
             categories = list(all_machines.keys())
+            del picker["initial_options"]
         for category in categories:
             for machine in all_machines[category]:
                 if machine["name"] not in display_machines:

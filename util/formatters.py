@@ -304,8 +304,6 @@ def authed_machines_modal(
     modal["blocks"] = block_list
     modal["callback_id"] = "filter_authed_tools_modal"
 
-    pprint(modal)
-
     return modal
 
 

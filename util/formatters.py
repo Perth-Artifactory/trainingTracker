@@ -213,14 +213,15 @@ def authed_machines_modal(
             # Add the button to the picker
             picker["options"].append(option)
 
-    # Add preselected options to picker
-    picker["initial_options"] = []
-    for category in categories:
-        # Create a button
-        option = create_option(text=category, value=category)
+    # Add preselected options to picker if category is not all
+    if "all" not in categories:
+        picker["initial_options"] = []
+        for category in categories:
+            # Create a button
+            option = create_option(text=category, value=category)
 
-        # Add the button to the picker
-        picker["initial_options"].append(option)
+            # Add the button to the picker
+            picker["initial_options"].append(option)
 
     # Add picker to input wrapper
     input_wrapper["element"] = picker
@@ -247,7 +248,6 @@ def authed_machines_modal(
 
         if "all" in categories:
             categories = list(all_machines.keys())
-            del picker["initial_options"]
         for category in categories:
             for machine in all_machines[category]:
                 if machine["name"] not in display_machines:
@@ -303,6 +303,8 @@ def authed_machines_modal(
     modal["title"]["text"] = title
     modal["blocks"] = block_list
     modal["callback_id"] = "filter_authed_tools_modal"
+
+    pprint(modal)
 
     return modal
 

@@ -11,51 +11,6 @@ from typing import Any
 
 from util import tidyhq
 
-
-def get_group_info(id=None, name=None):
-    group = None
-    if not id and not name:
-        logging.error("Provide either an ID or a group name")
-        sys.exit(1)
-    if id:
-        group = tidyhq.query(cat="groups", config=config, term=id, cache=cache)
-
-    elif name:
-        for group_i in cache["groups"]:
-            trim_group_i = cache["groups"][group_i]["label"].replace(
-                "Machine Operator - ", ""
-            )
-            if trim_group_i == name:
-                group = cache["groups"][group_i]
-                break
-        if not group:
-            logging.debug(f'Could not find group with name "{name}" in cache')
-            groups = tidyhq.query(cat="groups", config=config)
-            for group_i in groups:
-                trim_group_i = group_i["label"].replace("Machine Operator - ", "")
-                if trim_group_i == name:
-                    group = group_i
-                    break
-            if not group:
-                logging.error(f'Could not find group with name "{name}"')
-                sys.exit(1)
-
-    if not group:
-        logging.error(f'Trouble getting info for group "{name}"')
-        sys.exit(1)
-
-    processed = {}
-    if group["description"]:
-        desc_lines = group["description"].split("\n")
-        for line in desc_lines:
-            if "=" in line:
-                key, value = line.split("=", maxsplit=1)
-                processed[key.strip()] = value.strip()
-    name = group["label"].replace("Machine Operator - ", "")
-    processed["name"] = name
-    return processed
-
-
 # Set up logging
 logging.basicConfig(level=logging.DEBUG)
 
@@ -67,33 +22,7 @@ with open("config.json") as f:
 with open("machines.json") as f:
     reports: dict = json.load(f)
 
-# Load data from cache and check if it's still valid
-with open("cache.json") as f:
-    cache: dict = json.load(f)
-    cache_epoch = int(cache.get("time", 0))
-    if cache_epoch < datetime.datetime.now().timestamp() - config["cache_expiry"]:
-        logging.info(f'Cache is older than {config["cache_expiry"]} seconds, refreshing')
-        cache = {}
-    elif "contacts" not in cache or "groups" not in cache:
-        logging.info("Cache is missing contacts or groups, refreshing")
-        cache = {}
-    else:
-        logging.info ("Loaded cache")
-
-if not cache:
-    logging.debug("Getting contacts from TidyHQ")
-    cache["contacts"] = tidyhq.query(cat="contacts", config=config)
-    logging.debug(f"Got {len(cache["contacts"])} contacts from TidyHQ")
-
-    logging.debug("Getting groups from TidyHQ")
-    cache["groups"] = tidyhq.query(cat="groups", config=config)
-
-    logging.debug(f"Got {len(cache["groups"])} groups from TidyHQ")
-
-    logging.debug("Writing cache to file")
-    cache["time"] = datetime.datetime.now().timestamp()
-    with open("cache.json", "w") as f:
-        json.dump(cache, f)
+cache = tidyhq.fresh_cache(config=config)
 
 
 if len(sys.argv) < 2:
@@ -104,7 +33,7 @@ if len(sys.argv) < 2:
     for report in reports:
         print(f"{report}")
         for group in reports[report]:
-            info = get_group_info(group)
+            info = tidyhq.get_group_info(cache=cache, id=group, config=config)
             print(f'\t{info["name"]} ({group})')
             for field in info:
                 if field != "name":
@@ -143,11 +72,11 @@ contacts_indexed = {}
 machines = []
 
 for group in report:
-    info = get_group_info(id=group)
+    info = tidyhq.get_group_info(id=group, cache=cache, config=config)
     machine_name = info["name"]
     machines.append(machine_name)
     for contact in tidyhq.find_users_in_group(
-        group_id=group, contacts=cache["contacts"] # type: ignore
+        group_id=group, contacts=cache["contacts"]  # type: ignore
     ):
         contact_name = tidyhq.format_contact(contact=contact)
         if contact_name not in contacts_indexed:
@@ -157,7 +86,7 @@ for group in report:
 # Cache and index machines by name
 machines_by_name = {}
 for machine in machines:
-    info = get_group_info(name=machine)
+    info = tidyhq.get_group_info(name=machine, cache=cache, config=config)
     machines_by_name[info["name"]] = machine
 
 # Sort machines by name
@@ -169,7 +98,7 @@ machines = sorted(machines, key=lambda x: machines_by_name[x])
 # Generate header
 header = "| Operator | "
 for machine in machines:
-    info = get_group_info(name=machine)
+    info = tidyhq.get_group_info(name=machine, cache=cache, config=config)
     if "url" in info:
         header += f'[{info["name"]}]({info["url"]}) {info.get("level","")}| '
     else:

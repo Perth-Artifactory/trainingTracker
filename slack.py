@@ -180,7 +180,7 @@ def write_training_changes(ack, body, event):
 
     # Check if log file exists and create it if not
     try:
-        with open("tidyhq_changes.log") as f:
+        with open("tidyhq_changes.log", "r") as f:
             pass
     except FileNotFoundError:
         with open("tidyhq_changes.log", "w") as f:
@@ -328,6 +328,10 @@ def send_user_options(ack, body):
     options_existing = []
     options_new = []
     raw_options = []
+
+    # We can't send more than 100 options total
+    total_options = 0
+
     for tidy_user in users:
         if len(raw_options) > 100:
             break
@@ -348,10 +352,12 @@ def send_user_options(ack, body):
             )
 
             # Add the item to the correct group
-            if tidyhq.find_groups_for_user(contact=contact, config=config):
-                options_existing.append(option)
-            else:
-                options_new.append(option)
+            if total_options < 100:
+                total_options += 1
+                if tidyhq.find_groups_for_user(contact=contact, config=config):
+                    options_existing.append(option)
+                else:
+                    options_new.append(option)
 
     # Set up option groups
 

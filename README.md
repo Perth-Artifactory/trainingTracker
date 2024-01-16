@@ -6,8 +6,9 @@
 * `cp machines.json.example machines.json`
   * Configure at least one report. Report names should be alphanumeric.
   * Groups in TidyHQ that have a description set will be parsed for information. Each provided parameter should be on a new line and presented as `key=value`. Supported info is:
-    * `url` = When this group appears as the header to a column it will be linked to this page. No checking is done on the content of the field so it supports internal/external/relative/absolute links.
-    * `level` = Included after the name of a group/tool if present. Field can include unicode characters eg 🔴🟡🟢
+    * `url` = When this group appears as the header to a **report** column it will be linked to this page. No checking is done on the content of the field so it supports internal/external/relative/absolute links.
+    * `level` = Included after the name of a group/tool if present. Field can include unicode characters eg 🔴🟡🟢. Within the Slack bot this will default to ⚪ if not specified.
+    * `training` = Information regarding training. Displayed to a user checking their own sign offs via the Slack bot **if** they are not signed off on that tool.
 
 ## Report Generation
 
@@ -25,3 +26,24 @@ This can be used to push a report by:
 * `sed -i '11,$ d' path/to/wiki_page` - Remove the contents of the page after the header (header is typically 10 lines)
 * `python3 operator_report.py report_name >> path/to/wiki_page`
 * Commit the changed file
+
+## Slack Bot
+
+This bot includes various functions for users and trainers.
+
+`./slack.py`
+
+### For users
+
+* Provides information regarding the tool sign off process
+* Check existing sign offs and information about machines not yet signed off
+
+### For trainers
+
+* Check the sign offs for a particular user
+* Find all users signed off on a particular tool
+* Refresh the list of tools from TidyHQ
+  * This can also be completed with automations via `refresh_cache.py`
+* Add or remove authorisations for trainees
+  * This will be shared in the configured notification channel and logged to file
+* TODO: Add new tool groups and change group information

@@ -6,6 +6,7 @@ import time
 from pprint import pprint
 from typing import Any, Literal
 import re
+from copy import deepcopy as copy
 
 import requests
 from slack_bolt import App
@@ -13,7 +14,7 @@ from slack_bolt.adapter.socket_mode import SocketModeHandler
 from slack_sdk.web.client import WebClient  # for typing
 from slack_sdk.web.slack_response import SlackResponse  # for typing
 
-from util import formatters, misc, slackUtils, strings, tidyhq
+from util import formatters, misc, slackUtils, strings, tidyhq, blocks
 
 # Load config
 with open("config.json", "r") as config_file:
@@ -309,6 +310,8 @@ def refresh_tidyhq(ack, body, client):
 def send_user_options(ack, body):
     search_query = body["value"]
     users = tidyhq.list_all(config=config, cache=cache)
+    options_existing = []
+    options_new = []
     raw_options = []
     for tidy_user in users:
         if len(raw_options) > 100:
@@ -323,19 +326,33 @@ def send_user_options(ack, body):
 
         if search_query.lower() in str(name).lower():
             # Check if the user has been trained on at least one machine
-            existing = tidyhq.find_groups_for_user(contact=contact, config=config)
-            warning = ""
-            if not existing:
-                warning = ":warning:"
 
             # Create an item
             option = formatters.create_option(
-                text=f"{warning}{name}", value=f"{tidy_user}", capitalisation=False
+                text=f"{name}", value=f"{tidy_user}", capitalisation=False
             )
 
-            # Add the item to the picker
-            raw_options.append(option)
-    ack(options=raw_options)
+            # Add the item to the correct group
+            if tidyhq.find_groups_for_user(contact=contact, config=config):
+                options_existing.append(option)
+            else:
+                options_new.append(option)
+
+    # Set up option groups
+
+    option_groups = []
+    if options_existing:
+        option_group = copy(blocks.option_group)
+        option_group["label"]["text"] = "Existing trainees"
+        option_group["options"] = options_existing
+        option_groups.append(option_group)
+    if options_new:
+        option_group = copy(blocks.option_group)
+        option_group["label"]["text"] = "New trainees"
+        option_group["options"] = options_new
+        option_groups.append(option_group)
+
+    ack(option_groups=option_groups)
 
 
 # Get all linked users from TidyHQ

@@ -430,54 +430,6 @@ def select_users_modal(user, config, client, cache):
     input_wrapper = copy(blocks.input_wrapper)
     input_wrapper["label"]["text"] = strings.select_users_modal_picker_label
 
-    # Generate picker
-    picker = copy(blocks.single_static_select)
-
-    # Set the placeholder text
-    picker["placeholder"]["text"] = strings.select_users_modal_picker_placeholder
-
-    # Set the action ID
-    picker["action_id"] = "select_user"
-
-    # Add options to picker
-
-    # Get all users
-    users = tidyhq.list_all(config=config, cache=cache)
-
-    for tidy_user in users:
-        # Find the name
-        contact = tidyhq.get_contact(contact_id=tidy_user, cache=cache)
-        if not contact:
-            break
-
-        name = tidyhq.format_contact(contact=contact)
-
-        # Create an item
-        option = create_option(
-            text=name,
-            value=f"{user}-{tidy_user}",
-        )
-
-        # Add the item to the picker
-        picker["options"].append(option)
-
-    # Preselect the trainer as the default
-    picker["initial_options"] = []
-    tidy_user = tidyhq.translate_slack_to_tidyhq(
-        slack_id=user, cache=cache, config=config
-    )
-    contact = tidyhq.get_contact(contact_id=tidy_user, cache=cache)
-    if contact:
-        name = tidyhq.format_contact(contact=contact)
-        option = create_option(
-            text=name,
-            value=f"{user}-{tidy_user}",
-        )
-        picker["initial_options"].append(option)
-
-    # Add picker to input wrapper
-    # input_wrapper["element"] = picker
-
     # Create external selector
     external_selector = copy(blocks.external_select)
     external_selector["placeholder"][
@@ -485,6 +437,7 @@ def select_users_modal(user, config, client, cache):
     ] = strings.select_users_modal_picker_placeholder
     external_selector["action_id"] = "select_user"
     external_selector["min_query_length"] = 3
+    external_selector["focus_on_load"] = True
 
     # Add external selector to input wrapper
     input_wrapper["element"] = external_selector

@@ -178,6 +178,14 @@ def remove_training(ack, body, client):
 def write_training_changes(ack, body, event):
     ack()
 
+    # Check if log file exists and create it if not
+    try:
+        with open("tidyhq_changes.log") as f:
+            pass
+    except FileNotFoundError:
+        with open("tidyhq_changes.log", "w") as f:
+            pass
+
     # We're going to be updating the cache later on
     global cache
 
@@ -216,6 +224,13 @@ def write_training_changes(ack, body, event):
                 channel=config["slack"]["notification_channel"],
                 message=message,
             )
+
+            # Log the change to file
+            with open("tidyhq_changes.log", "a") as f:
+                f.write(
+                    f"{time.time()},{body['user']['id']},{action},{user},{machine}\n"
+                )
+
         else:
             logging.error(f"Failed to {action} {user} for {machine}")
 

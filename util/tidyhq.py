@@ -43,7 +43,14 @@ def format_contact(contact: dict, slack: bool = False, config={}) -> str:
     elif slack and not config:
         logging.error("No config provided")
 
-    return f'{contact["first_name"].capitalize()} {contact["last_name"].capitalize()}{n}{s}'
+    # This field is present in the API response regardless of whether the contact has a first or last name. Since the field has a value dict.get won't work as expected.
+    if not contact["first_name"]:
+        contact["first_name"] = "Unknown"
+
+    if not contact["last_name"]:
+        contact["last_name"] = "Unknown"
+
+    return f'{contact.get("first_name","Unknown").capitalize()} {contact.get("last_name","Unknown").capitalize()}{n}{s}'
 
 
 def get_contact(contact_id, cache):
@@ -278,13 +285,22 @@ def is_member(contact):
     pass
 
 
-def list_all(cache, config):
+def list_all(cache, config, filters: list = ["slack", "membership"]):
     contacts = []
     for contact in cache["contacts"]:
-        # Iterate over custom fields
-        for field in contact["custom_fields"]:
-            if field["id"] == config["tidyhq"]["ids"]["slack"]:
+        if "slack" in filters:
+            # Iterate over custom fields
+            for field in contact["custom_fields"]:
+                if field["id"] == config["tidyhq"]["ids"]["slack"]:
+                    contacts.append(contact["id"])
+
+        if "membership" in filters:
+            if contact.get("status", "") != "expired":
                 contacts.append(contact["id"])
+
+    # It's possible for a contact to be in the list twice, so we need to dedupe
+    contacts = list(set(contacts))
+
     return contacts
 
 

@@ -26,7 +26,9 @@ no_tools = "You're not authorised to use any tools in this category. This may be
 
 trainer_header = "Trainer tools"
 trainer_explainer = "You are authorised to add, remove, and check the tool authorisations of other members. We trust that you will only sign off on tools that you are authorised to train on."
-select_users_modal_picker_label = "Select a user"
+select_users_modal_picker_label = (
+    "Select a user (:warning: denotes a TidyHQ user with no existing training)"
+)
 select_users_modal_picker_placeholder = (
     "Only users with linked TidyHQ accounts are shown"
 )

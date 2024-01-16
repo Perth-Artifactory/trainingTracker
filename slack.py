@@ -322,9 +322,15 @@ def send_user_options(ack, body):
         name = tidyhq.format_contact(contact=contact)
 
         if search_query.lower() in str(name).lower():
+            # Check if the user has been trained on at least one machine
+            existing = tidyhq.find_groups_for_user(contact=contact, config=config)
+            warning = ""
+            if not existing:
+                warning = ":warning:"
+
             # Create an item
             option = formatters.create_option(
-                text=name, value=f"{tidy_user}", capitalisation=False
+                text=f"{warning}{name}", value=f"{tidy_user}", capitalisation=False
             )
 
             # Add the item to the picker

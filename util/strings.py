@@ -23,6 +23,7 @@ trained_tools_modal_explainer = "These are the medium and high risk tools in the
 trained_tools_modal_picker_label = "Filter categories"
 trained_tools_modal_picker_placeholder = "Select categories..."
 no_tools = "You're not authorised to use any tools in this category. This may be because you haven't completed the required training, or because we were unable to automatically link your Slack and TidyHQ accounts."
+no_tools_all = "You're not authorised to use any medium or high risk tools. This may be because you haven't completed the required training, or because we were unable to automatically link your Slack and TidyHQ accounts."
 
 trainer_header = "Trainer tools"
 trainer_explainer = "You are authorised to add, remove, and check the tool authorisations of other members. We trust that you will only sign off on tools that you are authorised to train on."

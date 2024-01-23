@@ -395,6 +395,40 @@ info = app.client.auth_test()
 logger.debug(f'Connected as @{info["user"]} to {info["team"]}')
 
 
+# Check whether we're running as a cron job
+if "-c" in sys.argv:
+    # Update homes for all slack users
+    logger.info("Updating homes for all users")
+
+    # Get a list of all users from slack
+    slack_response = app.client.users_list()
+    slack_users = slack_response.data["members"]  # type: ignore
+
+    users = []
+
+    # Convert slack response to list of users since it comes as an odd iterable
+    for user in slack_users:
+        # pprint(user)
+        if user["is_bot"] or user["deleted"]:
+            continue
+        users.append(user["id"])
+
+    logger.debug(f"Found {len(users)} users")
+
+    x = 1
+    for user in users:
+        slackUtils.updateHome(
+            user=user,
+            client=app.client,
+            config=config,
+            cache=cache,
+            machine_raw=machine_list,
+        )
+        logger.debug(f"Updated home for {user} ({x}/{len(users)})")
+        x += 1
+    sys.exit(0)
+
+
 if __name__ == "__main__":
     handler = SocketModeHandler(app, config["slack"]["app_token"])
     handler.start()

@@ -44,10 +44,17 @@ def updateHome(
     client: WebClient,
     config,
     cache,
+    machine_raw=None,
 ) -> None:
     home_view = {
         "type": "home",
-        "blocks": formatters.home(user=user, config=config, client=client, cache=cache),
+        "blocks": formatters.home(
+            user=user,
+            config=config,
+            client=client,
+            cache=cache,
+            machine_raw=machine_raw,
+        ),
     }
     client.views_publish(user_id=user, view=home_view)
 

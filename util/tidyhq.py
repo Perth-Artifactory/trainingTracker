@@ -93,15 +93,17 @@ def query(
                     logging.debug(f"Could not find group with ID {term} in cache")
                 else:
                     return cache["groups"]
-            elif type == "contacts":
+            elif cat == "contacts":
                 if term:
                     for contact in cache["contacts"]:
-                        if contact["id"] == term:
+                        if int(contact["id"]) == int(term):
                             return contact
                     # If we can't find the contact, handle via query
                     logging.debug(f"Could not find contact with ID {term} in cache")
                 else:
                     return cache["contacts"]
+        else:
+            logging.debug(f"Could not find category {cat} in cache")
 
     append = ""
     if term:

@@ -6,7 +6,7 @@ import logging
 def all(cache, config, machines=None):
     # Load the list of reports from file
     if not machines:
-        with open("machines.json") as f:
+        with open("machines.json", "r") as f:
             categories: dict = json.load(f)
     else:
         categories = machines

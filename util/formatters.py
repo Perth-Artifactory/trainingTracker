@@ -15,8 +15,13 @@ from . import blocks, misc, slackUtils, strings, machines, tidyhq
 logger = logging.getLogger("formatters")
 
 
-def home(user, config, client, cache):
+def home(user, config, client, cache, machine_raw=None):
     block_list: list[dict] = []
+
+    if not machine_raw:
+        # Load machine definitions from file
+        with open("machines.json", "r") as f:
+            machine_raw = json.load(f)
 
     # Header
     block_list = home_header(block_list)
@@ -38,21 +43,21 @@ def home(user, config, client, cache):
         ),
     )
 
-    # Calculate buttons
-    button_actions = copy(blocks.actions)
-    button_actions["block_id"] = "check_training"
-
-    # Load machine definitions from file
-    with open("machines.json", "r") as f:
-        machine_raw = json.load(f)
-
-    # Get tool categories
-    tool_categories = machines.all(cache=cache, config=config, machines=machine_raw)
-
     # get user authed machines
     authed_machines = machines.user(
         id=user, cache=cache, machines=machine_raw, config=config
     )
+
+    # If the user is not authed for any machines, authed_machines will be None. We want it to be an empty dict instead so it doesn't break iteration
+    if not authed_machines:
+        authed_machines = []
+
+    # Calculate buttons
+    button_actions = copy(blocks.actions)
+    button_actions["block_id"] = "check_training"
+
+    # Get tool categories
+    tool_categories = machines.all(cache=cache, config=config, machines=machine_raw)
 
     for category in tool_categories:
         # Calculate total while accounting for excluded machines
@@ -131,6 +136,14 @@ def home(user, config, client, cache):
 
     block_list = slackUtils.add_block(block_list=block_list, block=button_actions)
 
+    if not authed_machines:
+        block_list = slackUtils.add_block(
+            block_list=block_list,
+            block=slackUtils.inject_text(
+                block_list=blocks.context, text=strings.no_tools_all
+            ),
+        )
+
     block_list = slackUtils.add_block(block_list=block_list, block=blocks.divider)
 
     # Requesting training
@@ -138,35 +151,41 @@ def home(user, config, client, cache):
 
     # Admin
 
-    # Check if the user is a trainer
-    if slackUtils.is_trainer(user=user, client=client, config=config):
-        block_list = slackUtils.add_block(block_list=block_list, block=blocks.divider)
+    # Skip checking trainer status for users with no sign offs since they can't be trainers and usergroups.list is rate limited
+    if authed_machines:
+        # Check if the user is a trainer
+        if slackUtils.is_trainer(user=user, client=client, config=config):
+            block_list = slackUtils.add_block(
+                block_list=block_list, block=blocks.divider
+            )
 
-        # Add trainer explainer
-        block_list = home_trainer(block_list)
+            # Add trainer explainer
+            block_list = home_trainer(block_list)
 
-        # Add trainer buttons
-        button_actions = copy(blocks.actions)
-        button_actions["block_id"] = "trainer_home"
-        button_actions = slackUtils.inject_button(
-            actions=button_actions,
-            text="Select user",
-            value="trainer-select",
-            action_id="trainer-select",
-        )
-        button_actions = slackUtils.inject_button(
-            actions=button_actions,
-            text="Search by tool",
-            value="trainer-check_tool_training",
-            action_id="trainer-check_tool_training",
-        )
-        button_actions = slackUtils.inject_button(
-            actions=button_actions,
-            text="Refresh from TidyHQ",
-            value="trainer-refresh",
-            action_id="trainer-refresh",
-        )
-        block_list = slackUtils.add_block(block_list=block_list, block=button_actions)
+            # Add trainer buttons
+            button_actions = copy(blocks.actions)
+            button_actions["block_id"] = "trainer_home"
+            button_actions = slackUtils.inject_button(
+                actions=button_actions,
+                text="Select user",
+                value="trainer-select",
+                action_id="trainer-select",
+            )
+            button_actions = slackUtils.inject_button(
+                actions=button_actions,
+                text="Search by tool",
+                value="trainer-check_tool_training",
+                action_id="trainer-check_tool_training",
+            )
+            button_actions = slackUtils.inject_button(
+                actions=button_actions,
+                text="Refresh from TidyHQ",
+                value="trainer-refresh",
+                action_id="trainer-refresh",
+            )
+            block_list = slackUtils.add_block(
+                block_list=block_list, block=button_actions
+            )
 
     # pprint(block_list)
     return block_list
@@ -180,6 +199,10 @@ def authed_machines_modal(
     authed_machines = machines.user(
         id=user, cache=cache, config=config, machines=machine_list
     )
+
+    # If the user is not authed for any machines, authed_machines will be None. We want it to be an empty dict instead so it doesn't break iteration
+    if not authed_machines:
+        authed_machines = []
 
     block_list: list[dict] = []
     block_list = slackUtils.add_block(
@@ -231,8 +254,8 @@ def authed_machines_modal(
 
     block_list = slackUtils.add_block(block_list=block_list, block=blocks.divider)
 
+    # Deduplicate and flatten authed machines
     if authed_machines:
-        # Deduplicate and flatten authed machines
         authed_machines = list(
             set(
                 [
@@ -243,39 +266,49 @@ def authed_machines_modal(
             )
         )
 
-        # Generate list of machines to display, index by name, and sort
-        display_machines = {}
+    # Generate list of machines to display, index by name, and sort
+    display_machines = {}
 
-        if "all" in categories:
-            categories = list(all_machines.keys())
-        for category in categories:
-            for machine in all_machines[category]:
-                if machine["name"] not in display_machines:
-                    display_machines[machine["name"]] = machine
+    if "all" in categories:
+        categories = list(all_machines.keys())
+    for category in categories:
+        for machine in all_machines[category]:
+            if machine["name"] not in display_machines:
+                display_machines[machine["name"]] = machine
 
-        # sort display_machines by key
-        display_machines = dict(sorted(display_machines.items()))
+    # sort display_machines by key
+    display_machines = dict(sorted(display_machines.items()))
 
-        # Format machines as string
-        formatted_tools = ""
-        for machine in display_machines:
-            if display_machines[machine]["id"] in authed_machines:
+    # Format machines as string
+    formatted_tools = ""
+    for machine in display_machines:
+        if display_machines[machine]["id"] in authed_machines:
+            formatted_tools += (
+                f'{display_machines[machine].get("level","⚪")}✅ {machine}\n'
+            )
+        else:
+            formatted_tools += (
+                f'{display_machines[machine].get("level","⚪")}❌ {machine}'
+            )
+            # Check if the current machine has training info
+            if "training" in display_machines[machine]:
                 formatted_tools += (
-                    f'{display_machines[machine].get("level","⚪")}✅ {machine}\n'
+                    f' (Training: {display_machines[machine]["training"]})'
                 )
-            else:
-                formatted_tools += (
-                    f'{display_machines[machine].get("level","⚪")}❌ {machine}'
-                )
-                # Check if the current machine has training info
-                if "training" in display_machines[machine]:
-                    formatted_tools += (
-                        f' (Training: {display_machines[machine]["training"]})'
-                    )
-                formatted_tools += "\n"
+            formatted_tools += "\n"
 
-    else:
-        formatted_tools = strings.no_tools
+    # Add explainer if no tools are authed
+    if not authed_machines:
+        if len(categories) > 1:
+            no_tools = copy(strings.no_tools)
+            no_tools = no_tools.replace("this category", "these categories")
+        else:
+            no_tools = strings.no_tools
+        block_list = slackUtils.add_block(
+            block_list=block_list,
+            block=slackUtils.inject_text(block_list=blocks.text, text=no_tools),
+        )
+        block_list = slackUtils.add_block(block_list=block_list, block=blocks.divider)
 
     block_list = slackUtils.add_block(
         block_list=block_list,

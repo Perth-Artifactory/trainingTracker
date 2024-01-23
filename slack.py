@@ -16,6 +16,16 @@ from slack_sdk.web.slack_response import SlackResponse  # for typing
 
 from util import formatters, misc, slackUtils, strings, tidyhq, blocks
 
+# Split up command line arguments
+# -v: verbose logging
+# -c: cron job
+
+if "-cv" in sys.argv or "-vc" in sys.argv:
+    sys.argv.remove("-cv")
+    sys.argv.remove("-vc")
+    sys.argv.append("-c")
+    sys.argv.append("-v")
+
 # Load config
 with open("config.json", "r") as config_file:
     config = json.load(config_file)

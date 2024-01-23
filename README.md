@@ -31,7 +31,10 @@ This can be used to push a report by:
 
 This bot includes various functions for users and trainers.
 
-`./slack.py`
+`./slack.py [-cv]`
+
+* **-v** - Debug/verbose mode
+* **-c** - Update all user homes, designed to be run as a cronjob to decrease loading times for new users
 
 ### For users
 

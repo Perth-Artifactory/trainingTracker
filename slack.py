@@ -436,8 +436,9 @@ if "-c" in sys.argv:
             cache=cache,
             machine_raw=machine_list,
         )
-        logger.info(f"Updated home for {user} ({x}/{len(users)})")
+        logger.debug(f"Updated home for {user} ({x}/{len(users)})")
         x += 1
+    logger.info("All homes updated ({x})")
     sys.exit(0)
 
 

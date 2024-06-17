@@ -9,6 +9,15 @@ import json
 from copy import deepcopy as copy
 
 
+def find_all_groups(cache, config):
+    groups = []
+    for group_id in cache["groups"]:
+        group = cache["groups"][group_id]
+        if config["tidyhq"]["group_prefix"] in group["label"]:
+            groups.append(group["id"])
+    return groups
+
+
 def find_users_in_group(group_id, contacts: list) -> list[dict]:
     # Group endpoint doesn't return contacts, so we have to iterate over all contacts and check their groups
     c = []
@@ -200,6 +209,7 @@ def setup_cache(config) -> dict[str, Any]:
         "id",
         "last_name",
         "nick_name",
+        "status",
     ]
 
     for contact in raw_contacts:
@@ -269,6 +279,10 @@ def fresh_cache(cache=None, config=None, force=False) -> dict[str, Any]:
         logging.debug("No cache file found")
         cache = setup_cache(config=config)
         return cache
+    except json.decoder.JSONDecodeError:
+        logging.error("Cache file is invalid")
+        cache = setup_cache(config=config)
+        return cache
 
     # If the cache file is also stale, refresh it
     if (
@@ -287,7 +301,10 @@ def is_member(contact):
     pass
 
 
-def list_all(cache, config, filters: list = ["slack", "membership"]):
+def list_all(cache, config, filters: list = ["slack"]):
+    if cache is None:
+        cache = fresh_cache(config=config)
+
     contacts = []
     for contact in cache["contacts"]:
         if "slack" in filters:
@@ -295,10 +312,6 @@ def list_all(cache, config, filters: list = ["slack", "membership"]):
             for field in contact["custom_fields"]:
                 if field["id"] == config["tidyhq"]["ids"]["slack"]:
                     contacts.append(contact["id"])
-
-        if "membership" in filters:
-            if contact.get("status", "") != "expired":
-                contacts.append(contact["id"])
 
     # It's possible for a contact to be in the list twice, so we need to dedupe
     contacts = list(set(contacts))

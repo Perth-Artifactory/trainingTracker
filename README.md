@@ -1,5 +1,22 @@
 # trainingTracker
 
+Track member tool/equipment inductions through Slack using TidyHQ as a backend.
+
+## For users
+
+* Provides information regarding the tool sign off process
+* Check existing sign offs and information about machines not yet signed off
+* Provides encouragement to learn new tools
+* Increases awareness of available tools
+
+## For trainers
+
+* Check the sign offs for a particular user
+* Find all users signed off on a particular tool
+* Maintain contact list of authorised users for relevant notifications
+* Refresh the list of tools and potential trainees from TidyHQ without leaving the app
+* Add or remove authorisations for trainees in way that promotes group consensus amongst trainers
+
 ## Setup
 
 * Ensure that TidyHQ credentials have been set in `config.json`
@@ -10,7 +27,7 @@
     * `level` = Included after the name of a group/tool if present. Field can include unicode characters eg 🔴🟡🟢. Within the Slack bot this will default to ⚪ if not specified.
     * `training` = Information regarding training. Displayed to a user checking their own sign offs via the Slack bot **if** they are not signed off on that tool.
 
-## Report Generation
+## Markdown category output
 
 Formats a markdown table of approved operators based on whether a contact is in a configured TidyHQ group.
 
@@ -27,6 +44,10 @@ This can be used to push a report by:
 * `python3 operator_report.py report_name >> path/to/wiki_page`
 * Commit the changed file
 
+## Statistics
+
+`report.py` can be used to generate a number of useful statistics about overall training coverage
+
 ## Slack Bot
 
 This bot includes various functions for users and trainers.
@@ -35,18 +56,3 @@ This bot includes various functions for users and trainers.
 
 * **-v** - Debug/verbose mode
 * **-c** - Update all user homes, designed to be run as a cronjob to decrease loading times for new users
-
-### For users
-
-* Provides information regarding the tool sign off process
-* Check existing sign offs and information about machines not yet signed off
-
-### For trainers
-
-* Check the sign offs for a particular user
-* Find all users signed off on a particular tool
-* Refresh the list of tools from TidyHQ
-  * This can also be completed with automations via `refresh_cache.py`
-* Add or remove authorisations for trainees
-  * This will be shared in the configured notification channel and logged to file
-* TODO: Add new tool groups and change group information

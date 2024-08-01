@@ -9,6 +9,9 @@ Track member tool/equipment inductions through Slack using TidyHQ as a backend.
 * Provides encouragement to learn new tools
 * Increases awareness of available tools
 
+![](rsc/docs_images/check_training.png)
+![](rsc/docs_images/check_training_category.png)
+
 ## For trainers
 
 * Check the sign offs for a particular user
@@ -16,6 +19,11 @@ Track member tool/equipment inductions through Slack using TidyHQ as a backend.
 * Maintain contact list of authorised users for relevant notifications
 * Refresh the list of tools and potential trainees from TidyHQ without leaving the app
 * Add or remove authorisations for trainees in way that promotes group consensus amongst trainers
+
+![](rsc/docs_images/trainer_tools.png)
+![](rsc/docs_images/select_user.png)
+![](rsc/docs_images/sign_off.png)
+![](rsc/docs_images/sign_off_notification.png)
 
 ## Setup
 

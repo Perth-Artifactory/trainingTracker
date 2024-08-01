@@ -17,6 +17,12 @@ Track member tool/equipment inductions through Slack using TidyHQ as a backend.
 * Refresh the list of tools and potential trainees from TidyHQ without leaving the app
 * Add or remove authorisations for trainees in way that promotes group consensus amongst trainers
 
+## For administrators
+
+* Sign offs are stored as TidyHQ groups, no significant learning barrier to migrating in the future
+* Trainer permissions are managed through Slack groups
+* Includes configurable caching and processing offloading to allow for different usage levels and API limits
+
 ## Setup
 
 * Ensure that TidyHQ credentials have been set in `config.json`

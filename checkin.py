@@ -21,8 +21,10 @@ from util import formatters, misc, slackUtils, strings, tidyhq, blocks
 # -c: cron job
 
 if "-cv" in sys.argv or "-vc" in sys.argv:
-    sys.argv.remove("-cv")
-    sys.argv.remove("-vc")
+    if "-cv" in sys.argv:
+        sys.argv.remove("-cv")
+    if "-vc" in sys.argv:
+        sys.argv.remove("-vc")
     sys.argv.append("-c")
     sys.argv.append("-v")
 
@@ -90,6 +92,10 @@ if "-c" in sys.argv:
     )
 
     for message in messages:
+        # Confirm the message is a sign off
+        if "has been authorised" not in message["text"]:
+            continue
+
         for machine in machine_groups:
             if machine_groups[machine]["name"] in message["text"]:
                 logging.debug(
@@ -103,7 +109,24 @@ if "-c" in sys.argv:
                 if sign_off_days_ago == int(
                     machine_groups[machine]["first_use_check_in"]
                 ):
-                    pprint(message)
+                    pprint(message["text"])
                     logging.debug(
                         f"Sign off occurred {sign_off_days_ago} days ago, which is the correct day"
                     )
+                    operator_patten = re.compile(r"\(<@(\w+)>\)")
+                    trainer_pattern = re.compile(r"by <@(\w*)>")
+
+                    operator_search = operator_patten.search(message["text"])
+                    trainer_search = trainer_pattern.search(message["text"])
+
+                    if operator_search:
+                        operator = operator_search.group(1)
+
+                    if trainer_search:
+                        trainer = trainer_search.group(1)
+
+                    if not trainer:
+                        logging.warning("No trainer found in message")
+                        continue
+
+                    print(operator, trainer)

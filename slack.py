@@ -480,11 +480,21 @@ def checkin_approve(ack, body, logger):
         message=strings.checkin_induction_approved.format(machine_info["name"]),
     )
 
-    # Update the original message to show that the induction has been removed
+    # Update the original message
     app.client.chat_update(
         channel=config["slack"]["notification_channel"],
         ts=body["container"]["message_ts"],
-        text=f"This induction was confirmed by <@{body['user']['id']}> at {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}",
+        text=strings.check_in_explainer_finished.format(
+            machine_info["first_use_check_in"]
+        ),
+    )
+
+    # Send notification that the induction has been approved
+    slackUtils.send(
+        app=app,
+        channel=config["slack"]["notification_channel"],
+        thread_ts=body["container"]["message_ts"],
+        message=f"This induction was confirmed by <@{body['user']['id']}> at {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}",
     )
 
 

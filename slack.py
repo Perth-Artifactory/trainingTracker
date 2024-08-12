@@ -494,7 +494,7 @@ def checkin_approve(ack, body, logger):
         app=app,
         channel=config["slack"]["notification_channel"],
         thread_ts=body["container"]["message_ts"],
-        message=f"This induction was confirmed by <@{body['user']['id']}> at {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}",
+        message=f"This induction was confirmed by <@{body['user']['id']}>",
     )
 
 
@@ -588,7 +588,7 @@ def checkin_remove(ack, body, logger):
             app=app,
             channel=config["slack"]["notification_channel"],
             thread_ts=body["container"]["thread_ts"],
-            message=f"This induction was removed by <@{body['user']['id']}> at {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}",
+            message=f"This induction was removed by <@{body['user']['id']}>",
         )
 
         # Refresh the cache to reflect the change

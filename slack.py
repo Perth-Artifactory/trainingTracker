@@ -225,6 +225,12 @@ def write_training_changes(ack, body, event):
             user_contact = contact = tidyhq.get_contact(contact_id=user, cache=cache)
             if user_contact:
                 user_name = tidyhq.format_contact(contact=user_contact)
+                # Check for a slack user ID
+                slack_id = tidyhq.get_slack_id(
+                    config=config, contact=user_contact, cache=cache
+                )
+                if slack_id:
+                    user_name += f" (<@{slack_id}>)"
             else:
                 user_name = "UNKNOWN"
 

@@ -501,6 +501,11 @@ def checkin_remove(ack, body, logger):
     operator_id = info[1]
     trainer_id = info[2]
 
+    # Get TidyHQ contact ID
+    contact_id = tidyhq.translate_slack_to_tidyhq(
+        slack_id=operator_id, cache=cache, config=config
+    )
+
     # Calculate induction date
     sign_off_date = body["container"]["thread_ts"]
     sign_off_days_ago = (time.time() - float(sign_off_date)) // 86400 + 1
@@ -520,7 +525,7 @@ def checkin_remove(ack, body, logger):
 
     action = "remove"
     success = tidyhq.update_group_membership(
-        tidyhq_id=user, group_id=machine_id, action=action, config=config
+        tidyhq_id=contact_id, group_id=machine_id, action=action, config=config
     )
     if success:
         logging.info(f"{action}'d {user} for {machine_id}")

@@ -250,7 +250,7 @@ def write_training_changes(ack, body, event):
                 )
 
             # Check if this tool requires a follow up check in
-            if "first_use_check_in" in machine_info.keys():
+            if "first_use_check_in" in machine_info.keys() and action == "add":
                 slackUtils.send(
                     app=app,
                     channel=config["slack"]["notification_channel"],

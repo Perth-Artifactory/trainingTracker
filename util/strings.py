@@ -40,6 +40,7 @@ trainer_add_explainer = "Check the boxes next to the tools you want to authorise
 trainer_remove_explainer = "Check the boxes next to the tools you want to remove this user's authorisation to use. Tools the user is not authorised to use are not listed."
 
 check_in_explainer_trainer = "This tool needs a follow up with the operator after {} days. A trainer can check in with the operator using the buttons below. I will send the original trainer a reminder if this isn't actioned by: {}"
+check_in_explainer_finished = "This tool needed a follow up with the operator after {} days. Details of this check in can be found below."
 check_in_no_slack = "This user does not have an associated Slack account so I can't open a direct message with them. A committee member can contact the operator <https://artifactory.tidyhq.com/contacts/{}|here>."
 
 checkin_explainer_operator = """This is in relation to the {} induction you completed {} days ago.

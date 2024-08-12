@@ -565,11 +565,20 @@ def checkin_remove(ack, body, logger):
             message=strings.checkin_induction_rejected.format(machine_info["name"]),
         )
 
-        # Update the original message to show that the induction has been removed
+        # Update the original message
         app.client.chat_update(
             channel=config["slack"]["notification_channel"],
             ts=body["container"]["message_ts"],
-            text=f"This induction was removed by <@{body['user']['id']}> at {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}",
+            text=strings.check_in_explainer_finished.format(
+                machine_info["first_use_check_in"]
+            ),
+        )
+
+        slackUtils.send(
+            app=app,
+            channel=config["slack"]["notification_channel"],
+            thread_ts=body["container"]["thread_ts"],
+            message=f"This induction was removed by <@{body['user']['id']}> at {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}",
         )
 
         # Refresh the cache to reflect the change

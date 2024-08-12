@@ -237,7 +237,7 @@ def write_training_changes(ack, body, event):
             # Construct message
             message = f'{"✅" if action == "add" else "🚫"}{user_name} has been {"authorised" if action == "add" else "deauthorised"} for {machine_info["name"]} ({machine_info.get("level","⚪")}) by <@{body["user"]["id"]}>'
 
-            slackUtils.send(
+            thread_ts = slackUtils.send(
                 app=app,
                 channel=config["slack"]["notification_channel"],
                 message=message,
@@ -247,6 +247,22 @@ def write_training_changes(ack, body, event):
             with open("tidyhq_changes.log", "a") as f:
                 f.write(
                     f"{time.time()},{body['user']['id']},{action},{user},{machine}\n"
+                )
+
+            # Check if this tool requires a follow up check in
+            if "first_use_check_in" in machine_info.keys():
+                slackUtils.send(
+                    app=app,
+                    channel=config["slack"]["notification_channel"],
+                    message=f"This tool needs a follow up",
+                    blocks=formatters.follow_up_buttons(
+                        machine=machine_info,
+                        follow_up_days=machine_info["first_use_check_in"],
+                        operator_id=slack_id if slack_id else user,
+                        trainer_id=body["user"]["id"],
+                        has_slack=slack_id is not None,
+                    ),
+                    thread_ts=thread_ts,
                 )
 
         else:

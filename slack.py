@@ -551,7 +551,7 @@ def checkin_remove(ack, body, logger):
         # Log the change to file
         with open("tidyhq_changes.log", "a") as f:
             f.write(
-                f"{time.time()},{body['user']['id']},{action},{user},{machine_id}\n"
+                f"{time.time()},{body['user']['id']},{action},{contact_id},{machine_id}\n"
             )
 
         # Open a conversation with the operator and trainer

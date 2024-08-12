@@ -784,7 +784,7 @@ def machine_report_modal(config, cache, machine_list, machine):
 
 def follow_up_buttons(machine, follow_up_days, operator_id, trainer_id, has_slack=True):
     # Calculate human readable date for follow up days
-    follow_up_date = datetime.now() + timedelta(days=follow_up_days)
+    follow_up_date = datetime.now() + timedelta(days=int(follow_up_days))
     follow_up_date_str = follow_up_date.strftime("%B %d (%A)")
 
     block_list = []

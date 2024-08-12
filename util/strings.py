@@ -50,5 +50,5 @@ Please indicate:
 * If you've used the tool since your induction
 * If you have any questions or concerns"""
 
-checkin_induction_approved = "Your **{}** induction has been maintained. Unless something changes about the tool or we identify it's been a long time since you've used it I won't contact you about it again."
-checkin_induction_rejected = "Unfortunately your **{}** induction has been revoked. Please arrange with a trainer to undergo a refresher induction before using this tool again."
+checkin_induction_approved = "Your {} induction has been maintained. Unless something changes about the tool or we identify it's been a long time since you've used it I won't contact you about it again."
+checkin_induction_rejected = "Unfortunately your {} induction has been revoked. Please arrange with a trainer to undergo a refresher induction before using this tool again."

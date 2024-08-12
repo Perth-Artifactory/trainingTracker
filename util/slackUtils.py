@@ -10,15 +10,25 @@ from . import formatters, blocks, tidyhq
 logger = logging.getLogger("formatters")
 
 
-def send(message: "str", app, channel=None):
+def send(message: str, app, channel=None, thread_ts=None, blocks=None) -> Any:
     if not app:
         raise Exception("Global Slack client not provided")
 
-    if channel:
-        # Send an unthreaded message to the channel
-        response = app.client.chat_postMessage(channel=channel, text=message)
-    else:
+    if not channel:
         return None
+
+    # Prepare the parameters for the chat_postMessage call
+    params = {
+        "channel": channel,
+        "text": message,
+        "thread_ts": thread_ts,
+        "blocks": blocks,
+    }
+
+    # Remove keys with None values
+    params = {k: v for k, v in params.items() if v is not None}
+
+    response = app.client.chat_postMessage(**params)
 
     return response.data["ts"]
 
@@ -168,12 +178,14 @@ def inject_text(block_list, text) -> dict[Any, Any] | list[Any] | Any:
     return block_list
 
 
-def inject_button(actions: dict, text, value, action_id):
+def inject_button(actions: dict, text, value, action_id, style=None):
     actions = copy(actions)
     button = copy(blocks.button)
     button["text"]["text"] = text
     button["value"] = value
     button["action_id"] = action_id
+    if style:
+        button["style"] = style
     actions["elements"].append(button)
     return actions
 

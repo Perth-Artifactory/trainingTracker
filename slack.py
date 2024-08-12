@@ -528,18 +528,14 @@ def checkin_remove(ack, body, logger):
         tidyhq_id=contact_id, group_id=machine_id, action=action, config=config
     )
     if success:
-        logging.info(f"{action}'d {user} for {machine_id}")
+        logging.info(f"{action}'d {contact_id} for {machine_id}")
         # Get info to construct message
         machine_info = tidyhq.get_group_info(id=machine_id, cache=cache, config=config)
-        user_contact = contact = tidyhq.get_contact(contact_id=user, cache=cache)
+        user_contact = contact = tidyhq.get_contact(contact_id=contact_id, cache=cache)
         if user_contact:
             user_name = tidyhq.format_contact(contact=user_contact)
             # Check for a slack user ID
-            slack_id = tidyhq.get_slack_id(
-                config=config, contact=user_contact, cache=cache
-            )
-            if slack_id:
-                user_name += f" (<@{slack_id}>)"
+            slack_id = operator_id
         else:
             user_name = "UNKNOWN"
 

@@ -1,12 +1,13 @@
 import json
 import logging
 import os
+import re
 import sys
 import time
+from copy import deepcopy as copy
+from datetime import datetime
 from pprint import pprint
 from typing import Any, Literal
-import re
-from copy import deepcopy as copy
 
 import requests
 from slack_bolt import App
@@ -14,7 +15,7 @@ from slack_bolt.adapter.socket_mode import SocketModeHandler
 from slack_sdk.web.client import WebClient  # for typing
 from slack_sdk.web.slack_response import SlackResponse  # for typing
 
-from util import formatters, misc, slackUtils, strings, tidyhq, blocks
+from util import blocks, formatters, misc, slackUtils, strings, tidyhq
 
 # Split up command line arguments
 # -v: verbose logging
@@ -408,6 +409,170 @@ def send_user_options(ack, body):
         option_groups.append(option_group)
 
     ack(option_groups=option_groups)
+
+
+# Training Checkins
+
+
+@app.action("checkin-contact")
+def checkin_contact(ack, body, logger):
+    ack()
+
+    # Get information from the button
+    info = body["actions"][0]["value"].split("-")
+    machine_id = info[0]
+    operator_id = info[1]
+    trainer_id = info[2]
+
+    # Calculate induction date
+    sign_off_date = body["container"]["thread_ts"]
+    sign_off_days_ago = (time.time() - float(sign_off_date)) // 86400 + 1
+
+    # Get machine name
+    machine_info = tidyhq.get_group_info(id=machine_id, cache=cache, config=config)
+
+    # Open a conversation with the operator and trainer
+    response: SlackResponse = app.client.conversations_open(users=f"{operator_id},{trainer_id}")  # type: ignore
+    channel_id = str(response["channel"]["id"])
+
+    # Send an explainer message to the operator
+    slackUtils.send(
+        app=app,
+        channel=channel_id,
+        message=strings.checkin_explainer_operator.format(
+            machine_info["name"], sign_off_days_ago
+        ),
+    )
+
+    # Send a message to the trainer channel letting other trainers know someone is following up
+    slackUtils.send(
+        app=app,
+        channel=config["slack"]["notification_channel"],
+        message=f"<@{body['user']['id']}> triggered a conversation regarding this induction <!date^{time.time()}^at {{date_short_pretty}}^optional_link|at {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}> ",
+        thread_ts=body["container"]["thread_ts"],
+    )
+
+
+@app.action("checkin-approve")
+def checkin_approve(ack, body, logger):
+    ack()
+    # Get information from the button
+    info = body["actions"][0]["value"].split("-")
+    machine_id = info[0]
+    operator_id = info[1]
+    trainer_id = info[2]
+
+    # Calculate induction date
+    sign_off_date = body["container"]["thread_ts"]
+    sign_off_days_ago = (time.time() - float(sign_off_date)) // 86400 + 1
+
+    # Get machine name
+    machine_info = tidyhq.get_group_info(id=machine_id, cache=cache, config=config)
+
+    # Open a conversation with the operator and trainer
+    response: SlackResponse = app.client.conversations_open(users=f"{operator_id},{trainer_id}")  # type: ignore
+    channel_id = str(response["channel"]["id"])
+
+    # Send an explainer message to the operator
+    slackUtils.send(
+        app=app,
+        channel=channel_id,
+        message=strings.checkin_induction_approved.format(machine_info["name"]),
+    )
+
+    # Update the original message to show that the induction has been removed
+    app.client.chat_update(
+        channel=config["slack"]["notification_channel"],
+        ts=body["container"]["message_ts"],
+        text=f"This induction has been confirmed by <@{body['user']['id']}> <!date^{time.time()}^at {{date_short_pretty}}^optional_link|at {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}>",
+    )
+
+
+@app.action("checkin-remove")
+def checkin_remove(ack, body, logger):
+    ack()
+
+    # We're going to be updating the cache later on
+    global cache
+
+    # Get information from the button
+    info = body["actions"][0]["value"].split("-")
+    machine_id = info[0]
+    operator_id = info[1]
+    trainer_id = info[2]
+
+    # Calculate induction date
+    sign_off_date = body["container"]["thread_ts"]
+    sign_off_days_ago = (time.time() - float(sign_off_date)) // 86400 + 1
+
+    # Get machine name
+    machine_info = tidyhq.get_group_info(id=machine_id, cache=cache, config=config)
+
+    # Remove the induction
+
+    # Check if log file exists and create it if not
+    try:
+        with open("tidyhq_changes.log", "r") as f:
+            pass
+    except FileNotFoundError:
+        with open("tidyhq_changes.log", "w") as f:
+            pass
+
+    action = "remove"
+    success = tidyhq.update_group_membership(
+        tidyhq_id=user, group_id=machine_id, action=action, config=config
+    )
+    if success:
+        logging.info(f"{action}'d {user} for {machine_id}")
+        # Get info to construct message
+        machine_info = tidyhq.get_group_info(id=machine_id, cache=cache, config=config)
+        user_contact = contact = tidyhq.get_contact(contact_id=user, cache=cache)
+        if user_contact:
+            user_name = tidyhq.format_contact(contact=user_contact)
+            # Check for a slack user ID
+            slack_id = tidyhq.get_slack_id(
+                config=config, contact=user_contact, cache=cache
+            )
+            if slack_id:
+                user_name += f" (<@{slack_id}>)"
+        else:
+            user_name = "UNKNOWN"
+
+        # Construct message
+        message = f'🚫{user_name} has been "deauthorised" for {machine_info["name"]} ({machine_info.get("level","⚪")}) by <@{body["user"]["id"]}> after following up with the operator'
+
+        thread_ts = slackUtils.send(
+            app=app,
+            channel=config["slack"]["notification_channel"],
+            message=message,
+        )
+
+        # Log the change to file
+        with open("tidyhq_changes.log", "a") as f:
+            f.write(
+                f"{time.time()},{body['user']['id']},{action},{user},{machine_id}\n"
+            )
+
+        # Open a conversation with the operator and trainer
+        response: SlackResponse = app.client.conversations_open(users=f"{operator_id},{trainer_id}")  # type: ignore
+        channel_id = str(response["channel"]["id"])
+
+        # Send an explainer message to the operator
+        slackUtils.send(
+            app=app,
+            channel=channel_id,
+            message=strings.checkin_induction_rejected.format(machine_info["name"]),
+        )
+
+        # Update the original message to show that the induction has been removed
+        app.client.chat_update(
+            channel=config["slack"]["notification_channel"],
+            ts=body["container"]["message_ts"],
+            text=f"This induction has been removed by <@{body['user']['id']}> <!date^{time.time()}^at {{date_short_pretty}}^optional_link|at {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}> ",
+        )
+
+        # Refresh the cache to reflect the change
+        cache = tidyhq.fresh_cache(config=config, force=True)
 
 
 # Get all linked users from TidyHQ

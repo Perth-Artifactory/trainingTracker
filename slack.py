@@ -440,7 +440,7 @@ def checkin_contact(ack, body, logger):
         app=app,
         channel=channel_id,
         message=strings.checkin_explainer_operator.format(
-            machine_info["name"], sign_off_days_ago
+            machine_info["name"], int(sign_off_days_ago)
         ),
     )
 
@@ -448,7 +448,7 @@ def checkin_contact(ack, body, logger):
     slackUtils.send(
         app=app,
         channel=config["slack"]["notification_channel"],
-        message=f"<@{body['user']['id']}> triggered a conversation regarding this induction <!date^{time.time()}^at {{date_short_pretty}}^optional_link|at {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}> ",
+        message=f"<@{body['user']['id']}> triggered a conversation regarding this induction",
         thread_ts=body["container"]["thread_ts"],
     )
 
@@ -484,7 +484,7 @@ def checkin_approve(ack, body, logger):
     app.client.chat_update(
         channel=config["slack"]["notification_channel"],
         ts=body["container"]["message_ts"],
-        text=f"This induction has been confirmed by <@{body['user']['id']}> <!date^{time.time()}^at {{date_short_pretty}}^optional_link|at {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}>",
+        text=f"This induction was confirmed by <@{body['user']['id']}> at {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}",
     )
 
 
@@ -568,7 +568,7 @@ def checkin_remove(ack, body, logger):
         app.client.chat_update(
             channel=config["slack"]["notification_channel"],
             ts=body["container"]["message_ts"],
-            text=f"This induction has been removed by <@{body['user']['id']}> <!date^{time.time()}^at {{date_short_pretty}}^optional_link|at {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}> ",
+            text=f"This induction was removed by <@{body['user']['id']}> at {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}",
         )
 
         # Refresh the cache to reflect the change

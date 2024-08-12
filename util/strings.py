@@ -42,7 +42,7 @@ trainer_remove_explainer = "Check the boxes next to the tools you want to remove
 check_in_explainer_trainer = "This tool needs a follow up with the operator after {} days. A trainer can check in with the operator using the buttons below. I will send the original trainer a reminder if this isn't actioned by: {}"
 check_in_no_slack = "This user does not have an associated Slack account so I can't open a direct message with them. A committee member can contact the operator <https://artifactory.tidyhq.com/contacts/{}|here>."
 
-checkin_explainer_operator = """This is in relation to the **{}** induction you completed {} days ago.
+checkin_explainer_operator = """This is in relation to the {} induction you completed {} days ago.
 We've found that a key part of the learning process is to put the knowledge you've learned into practice soon after its been acquired. For certain inductions this involves a check in with a trainer to ensure you've had an opportunity to use the tool, cement your learning, and ask any questions you may have.
 
 Please indicate:

@@ -809,7 +809,7 @@ def follow_up_buttons(machine, follow_up_days, operator_id, trainer_id, has_slac
     button_actions = slackUtils.inject_button(
         actions=button_actions,
         text="Approve",
-        value=f"{machine}-{operator_id}-{trainer_id}",
+        value=f"{machine["id"]}-{operator_id}-{trainer_id}",
         action_id="checkin-approve",
         style="primary",
     )
@@ -819,7 +819,7 @@ def follow_up_buttons(machine, follow_up_days, operator_id, trainer_id, has_slac
         button_actions = slackUtils.inject_button(
             actions=button_actions,
             text="Contact",
-            value=f"{machine}-{operator_id}-{trainer_id}",
+            value=f"{machine["id"]}-{operator_id}-{trainer_id}",
             action_id="checkin-contact",
         )
 
@@ -827,7 +827,7 @@ def follow_up_buttons(machine, follow_up_days, operator_id, trainer_id, has_slac
     button_actions = slackUtils.inject_button(
         actions=button_actions,
         text="Remove",
-        value=f"{machine}-{operator_id}-{trainer_id}",
+        value=f"{machine["id"]}-{operator_id}-{trainer_id}",
         action_id="checkin-remove",
         style="danger",
     )

@@ -1,7 +1,7 @@
 import logging
 import os
 from copy import deepcopy as copy
-from datetime import datetime
+from datetime import datetime, timedelta
 from pprint import pprint
 from typing import Any, Literal
 import json
@@ -780,3 +780,68 @@ def machine_report_modal(config, cache, machine_list, machine):
     modal["blocks"] = block_list
 
     return modal
+
+
+def follow_up_buttons(machine, follow_up_days, operator_id, trainer_id, has_slack=True):
+    # Calculate human readable date for follow up days
+    follow_up_date = datetime.now() + timedelta(days=follow_up_days)
+    follow_up_date_str = follow_up_date.strftime("%B %d (%A)")
+
+    block_list = []
+
+    # Create explainer text
+    block_list = slackUtils.add_block(
+        block_list=block_list,
+        block=slackUtils.inject_text(
+            block_list=blocks.text,
+            text=strings.check_in_explainer_trainer.format(
+                follow_up_days, follow_up_date_str
+            ),
+        ),
+    )
+
+    block_list = slackUtils.add_block(block_list=block_list, block=blocks.divider)
+
+    # Create action block
+    button_actions = copy(blocks.actions)
+
+    # Create approve button
+    button_actions = slackUtils.inject_button(
+        actions=button_actions,
+        text="Approve",
+        value=f"{machine}-{operator_id}-{trainer_id}",
+        action_id="checkin-approve",
+        style="primary",
+    )
+
+    if has_slack:
+        # Create contact button
+        button_actions = slackUtils.inject_button(
+            actions=button_actions,
+            text="Contact",
+            value=f"{machine}-{operator_id}-{trainer_id}",
+            action_id="checkin-contact",
+        )
+
+    # Create remove button
+    button_actions = slackUtils.inject_button(
+        actions=button_actions,
+        text="Remove",
+        value=f"{machine}-{operator_id}-{trainer_id}",
+        action_id="checkin-remove",
+        style="danger",
+    )
+
+    block_list = slackUtils.add_block(block_list=block_list, block=button_actions)
+
+    if not has_slack:
+        block_list = slackUtils.add_block(block_list=block_list, block=blocks.divider)
+        block_list = slackUtils.add_block(
+            block_list=block_list,
+            block=slackUtils.inject_text(
+                block_list=blocks.text,
+                text=strings.check_in_no_slack.format(operator_id),
+            ),
+        )
+
+    return block_list

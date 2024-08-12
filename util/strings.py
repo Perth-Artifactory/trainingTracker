@@ -38,3 +38,6 @@ trainer_no_tools = "This user is not authorised to use any medium or high risk t
 
 trainer_add_explainer = "Check the boxes next to the tools you want to authorise this user to use. Tools the user is already authorised to use are not listed."
 trainer_remove_explainer = "Check the boxes next to the tools you want to remove this user's authorisation to use. Tools the user is not authorised to use are not listed."
+
+check_in_explainer_trainer = "This tool needs a follow up with the operator after {} days. You can check in with the operator using the buttons below. I will send you a reminder if you haven't checked in with the operator after by: {}"
+check_in_no_slack = "This user does not have an associated Slack account so I can't open a direct message with them. A committee member can contact the operator <https://artifactory.tidyhq.com/contacts/{}|here>."

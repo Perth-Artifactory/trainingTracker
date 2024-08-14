@@ -129,4 +129,31 @@ if "-c" in sys.argv:
                         logging.warning("No trainer found in message")
                         continue
 
-                    print(operator, trainer)
+                    # Look for replies to the message that indicate that the sign off has already been checked on
+
+                    replies = app.client.conversations_replies(
+                        channel=config["slack"]["notification_channel"],
+                        ts=message["ts"],
+                    )
+
+                    for reply in replies["messages"]:
+                        if (
+                            "This induction was confirmed by" in reply["text"]
+                            or "This induction was removed by" in reply["text"]
+                        ):
+                            logging.debug("This sign off has already been checked")
+                            break
+                    else:
+                        # If no replies indicate that the sign off has been checked, send a message to the trainer
+                        logging.info(
+                            f"Sending a message to <@{trainer}> to follow up with <@{operator}>"
+                        )
+                        slackUtils.send(
+                            app=app,
+                            channel=config["slack"]["notification_channel"],
+                            thread_ts=message["ts"],
+                            message=f"Hey <@{trainer}>, can you please follow up with <@{operator}> about their recent sign off for {machine_groups[machine]['name']}? It's been {sign_off_days_ago} days since the sign off.",
+                        )
+
+                        # An auth will only match one machine
+                        break

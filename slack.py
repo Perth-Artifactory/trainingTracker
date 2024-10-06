@@ -621,7 +621,11 @@ if "-c" in sys.argv:
 
     # Get a list of all users from slack
     slack_response = app.client.users_list()
-    slack_users = slack_response.data["members"]  # type: ignore
+    slack_users = []
+    while slack_response.data.get("response_metadata", {}).get("next_cursor"):  # type: ignore
+        slack_users += slack_response.data["members"]  # type: ignore
+        slack_response = app.client.users_list(cursor=slack_response.data["response_metadata"]["next_cursor"])  # type: ignore
+    slack_users += slack_response.data["members"]  # type: ignore
 
     users = []
 

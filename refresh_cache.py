@@ -10,6 +10,8 @@ logging.basicConfig(level=logging.DEBUG)
 with open("config.json") as f:
     config: dict = json.load(f)
 
+# Override the cache expiry time
+config["cache_expiry"] = 20 * 60
 
 # Get cache
 cache = tidyhq.fresh_cache(config=config, force=True)

@@ -109,6 +109,8 @@ for row in table_data:
     percentage = int(row[2].replace("%", ""))
     if percentage == 0:
         bucket = 0
+    elif percentage < 10:
+        bucket = 1
     else:
         bucket = (percentage // 10) * 10  # Calculate the bucket for the 10% increment
     if bucket not in distribution:

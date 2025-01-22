@@ -336,7 +336,7 @@ def refresh_tidyhq(ack, body, client):
 @app.options("select_user")
 def send_user_options(ack, body):
     search_query = body["value"]
-    users = tidyhq.list_all(config=config, cache=cache)
+    users = tidyhq.list_all(config=config, cache=cache, filters=[])
     options_existing = []
     options_new = []
     raw_options = []

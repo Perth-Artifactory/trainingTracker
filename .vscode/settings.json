@@ -26,5 +26,9 @@
         "tidyauth",
         "tidyhq",
         "usergroups"
-    ]
+    ],
+    "sonarlint.connectedMode.project": {
+        "connectionId": "https-sq-artifactory-org-au",
+        "projectKey": "Perth-Artifactory_trainingTracker_c2b6e06e-daf1-42de-8ece-097334812c48"
+    }
 }

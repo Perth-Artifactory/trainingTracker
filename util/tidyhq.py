@@ -312,6 +312,8 @@ def list_all(cache, config, filters: list = ["slack"]):
             for field in contact["custom_fields"]:
                 if field["id"] == config["tidyhq"]["ids"]["slack"]:
                     contacts.append(contact["id"])
+        else:
+            contacts.append(contact["id"])
 
     # It's possible for a contact to be in the list twice, so we need to dedupe
     contacts = list(set(contacts))

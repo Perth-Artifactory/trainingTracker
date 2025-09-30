@@ -57,20 +57,20 @@ checkin_induction_rejected = "Unfortunately your {} induction has been revoked. 
 
 trainee_messages = {}
 trainee_messages["member_induction"] = """Hi <@{trainee_slack_id}> :wave:
-    
-    <@{trainer}> has just signed you off as having completed your new member induction! :tada:
-    
-    As a recap of what was covered, you should now be familiar with:
-    • Where to find our <constitution|https://wiki.artifactory.org.au/en/constitution> and <by-laws|https://wiki.artifactory.org.au/en/docs/policies/bylaws>
-    • Our <Code of Conduct|https://wiki.artifactory.org.au/en/docs/committee/code_of_conduct>
-    • How to pay your membership and tool usage fees (Your individual transfer code is `TC{trainee_tidyhq_id}`, this should be used in the description of all bank transfers you make to us)
-    • How to pause or resign your membership (email <membership@artifactory.org.au>)
-    • How to report injuries, request lockers, apply for a key, and other member services (`/form`)
-    • Where you can store items in the space
-    • Our <training policy|https://wiki.artifactory.org.au/en/docs/policies/trainingy>, including how to book training sessions and view your existing sign offs (like this one!)
-    • Rules around communal materials
-    • Where to find upcoming events and how to RSVP for the events that require it
-    • Items around the workshop including the kitchen, whiteboard, first aid kits, defibrillator, fire extinguishers, and emergency exits
-    
-    If you have any questions about any of this, feel free to reach out to our Membership Officer <@UC6T4U150> or any committee member.
-    """
+
+<@{trainer}> has just signed you off as having completed your new member induction! :tada:
+
+As a recap of what was covered, you should now be familiar with:
+• Where to find our <https://wiki.artifactory.org.au/en/constitution|Constitution> and <https://wiki.artifactory.org.au/en/docs/policies/bylaws|by-laws>
+• Our <https://wiki.artifactory.org.au/en/docs/committee/code_of_conduct|Code of Conduct>
+• How to pay your membership and tool usage fees (Your individual transfer code is `TC{trainee_tidyhq_id}`, this should be used in the description of all bank transfers you make to us)
+• How to pause or resign your membership (email <mailto:membership@artifactory.org.au|membership@artifactory.org.au>)
+• How to report injuries, request lockers, apply for a key, and other member services (`/form`)
+• Where you can store items in the space
+• Our <https://wiki.artifactory.org.au/en/docs/policies/trainingy|training policy>, including how to book training sessions and view your existing sign offs (like this one!)
+• Rules around communal materials
+• Where to find upcoming events and how to RSVP for the events that require it
+• Items around the workshop including the kitchen, whiteboard, first aid kits, defibrillator, fire extinguishers, and emergency exits
+
+If you have any questions about any of this, feel free to reach out to our Membership Officer <@UC6T4U150> or any committee member.
+"""

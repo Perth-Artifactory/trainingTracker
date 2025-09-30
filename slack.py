@@ -250,7 +250,7 @@ def write_training_changes(ack, body, event):
                 channel=config["slack"]["notification_channel"],
                 message=message,
                 metadata={
-                    "event_type": "training_add",
+                    "event_type": f"training_{action}",
                     "event_payload": {
                         "trainer": body["user"]["id"],
                         "operator": user,

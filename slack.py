@@ -300,6 +300,15 @@ def write_training_changes(ack, body, event):
                     # Send the message to the trainee
                     if slack_id:
                         slackUtils.send(message=message, app=app, slack_id=slack_id)
+
+                    # Add a note to the sign off message
+                    if thread_ts:
+                        slackUtils.send(
+                            app=app,
+                            channel=config["slack"]["notification_channel"],
+                            message=f"A post training message has been sent to {user_name}",
+                            thread_ts=thread_ts,
+                        )
                 else:
                     logging.error(
                         f"Trainee message {machine_info['trainee_message']} not found in strings.trainee_messages"

@@ -2,20 +2,40 @@ import logging
 from typing import Any
 from copy import deepcopy as copy
 from slack_sdk.web.client import WebClient  # for typing
+from slack_bolt import App  # for typing
 from pprint import pprint
 from . import formatters, blocks, tidyhq
+
 
 # Set up logging
 
 logger = logging.getLogger("formatters")
 
 
-def send(message: str, app, channel=None, thread_ts=None, blocks=None) -> Any:
+def send(
+    message: str,
+    app: App,
+    channel: str | None = None,
+    slack_id: str | None = None,
+    thread_ts: str | None = None,
+    blocks: list | None = None,
+    metadata: dict | None = None,
+) -> str | None:
+    """Send a message to a Slack channel or user."""
     if not app:
         raise Exception("Global Slack client not provided")
 
-    if not channel:
+    if not channel and not slack_id:
         return None
+
+    if metadata:
+        if "event_type" not in metadata or "event_payload" not in metadata:
+            raise Exception("Metadata must contain event_type and event_payload")
+
+    if slack_id and not channel:
+        # Open a DM with the user to get the channel ID
+        r = app.client.conversations_open(users=slack_id)
+        channel = r.data["channel"]["id"]  # type: ignore
 
     # Prepare the parameters for the chat_postMessage call
     params = {
@@ -23,6 +43,7 @@ def send(message: str, app, channel=None, thread_ts=None, blocks=None) -> Any:
         "text": message,
         "thread_ts": thread_ts,
         "blocks": blocks,
+        "metadata": metadata,
     }
 
     # Remove keys with None values
@@ -30,7 +51,7 @@ def send(message: str, app, channel=None, thread_ts=None, blocks=None) -> Any:
 
     response = app.client.chat_postMessage(**params)
 
-    return response.data["ts"]
+    return response.data["ts"]  # type: ignore
 
 
 def check_trainer(user, config, app=None, client=None):

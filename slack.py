@@ -15,7 +15,8 @@ from slack_bolt.adapter.socket_mode import SocketModeHandler
 from slack_sdk.web.client import WebClient  # for typing
 from slack_sdk.web.slack_response import SlackResponse  # for typing
 
-from util import blocks, formatters, misc, slackUtils, strings, tidyhq
+from util import blocks, formatters, misc, slackUtils, tidyhq
+from editable_resources import strings
 
 # Split up command line arguments
 # -v: verbose logging
@@ -69,7 +70,12 @@ def refresh_home(ack, body, client):
     ack()
     global cache
     cache = tidyhq.fresh_cache(cache=cache, config=config)
-    slackUtils.updateHome(user=body["user"]["id"], client=client, config=config, authed_slack_users=authed_slack_users, contacts=contacts, current_members=current_members, cache=cache)  # type: ignore
+    slackUtils.updateHome(
+        user=body["user"]["id"],
+        client=client,
+        config=config,
+        cache=cache,
+    )  # type: ignore
 
 
 # Category buttons
@@ -224,6 +230,7 @@ def write_training_changes(ack, body, event):
             # Get info to construct message
             machine_info = tidyhq.get_group_info(id=machine, cache=cache, config=config)
             user_contact = contact = tidyhq.get_contact(contact_id=user, cache=cache)
+            slack_id = ""
             if user_contact:
                 user_name = tidyhq.format_contact(contact=user_contact)
                 # Check for a slack user ID
@@ -236,12 +243,21 @@ def write_training_changes(ack, body, event):
                 user_name = "UNKNOWN"
 
             # Construct message
-            message = f'{"✅" if action == "add" else "🚫"}{user_name} has been {"authorised" if action == "add" else "deauthorised"} for {machine_info["name"]} ({machine_info.get("level","⚪")}) by <@{body["user"]["id"]}>'
+            message = f"{'✅' if action == 'add' else '🚫'}{user_name} has been {'authorised' if action == 'add' else 'deauthorised'} for {machine_info['name']} ({machine_info.get('level', '⚪')}) by <@{body['user']['id']}>"
 
             thread_ts = slackUtils.send(
                 app=app,
                 channel=config["slack"]["notification_channel"],
                 message=message,
+                metadata={
+                    "event_type": "training_add",
+                    "event_payload": {
+                        "trainer": body["user"]["id"],
+                        "operator": user,
+                        "machine": machine,
+                        "action": action,
+                    },
+                },
             )
 
             # Log the change to file
@@ -255,7 +271,7 @@ def write_training_changes(ack, body, event):
                 slackUtils.send(
                     app=app,
                     channel=config["slack"]["notification_channel"],
-                    message=f"This tool needs a follow up",
+                    message="This tool needs a follow up",
                     blocks=formatters.follow_up_buttons(
                         machine=machine_info,
                         follow_up_days=machine_info["first_use_check_in"],
@@ -265,6 +281,23 @@ def write_training_changes(ack, body, event):
                     ),
                     thread_ts=thread_ts,
                 )
+
+            # Check if this tool has a trainee message to send
+            if "trainee_message" in machine_info.keys() and action == "add":
+                if machine_info["trainee_message"] in strings.trainee_messages:
+                    message = strings.trainee_messages[machine_info["trainee_message"]]
+
+                    message = message.format(
+                        trainer=body["user"]["id"],
+                        trainee_slack_id=slack_id,
+                        trainee_tidyhq_id=user,
+                        trainee_name=user_name,
+                        machine=machine_info["name"],
+                    )
+
+                    # Send the message to the trainee
+                    if slack_id:
+                        slackUtils.send(message=message, app=app, slack_id=slack_id)
 
         else:
             logging.error(f"Failed to {action} {user} for {machine}")
@@ -346,7 +379,7 @@ def handle_view_submission_events(ack, body, client):
 @app.action("trainer-refresh")
 def refresh_tidyhq(ack, body, client):
     ack()
-    logging.info(f'User {body["user"]["id"]} refreshed data from TidyHQ')
+    logging.info(f"User {body['user']['id']} refreshed data from TidyHQ")
     global cache
     cache = tidyhq.fresh_cache(config=config, force=True)
     # Refresh the user's home
@@ -432,8 +465,14 @@ def checkin_contact(ack, body, logger):
     machine_info = tidyhq.get_group_info(id=machine_id, cache=cache, config=config)
 
     # Open a conversation with the operator and trainer
-    response: SlackResponse = app.client.conversations_open(users=f"{operator_id},{trainer_id}")  # type: ignore
-    channel_id = str(response["channel"]["id"])
+    response: SlackResponse = app.client.conversations_open(
+        users=f"{operator_id},{trainer_id}"
+    )  # type: ignore
+    if not response:
+        logger.error(f"Failed to open conversation with {operator_id} and {trainer_id}")
+        return
+
+    channel_id = response.get("channel", {}).get("id")
 
     # Send an explainer message to the operator
     slackUtils.send(
@@ -470,8 +509,11 @@ def checkin_approve(ack, body, logger):
     machine_info = tidyhq.get_group_info(id=machine_id, cache=cache, config=config)
 
     # Open a conversation with the operator and trainer
-    response: SlackResponse = app.client.conversations_open(users=f"{operator_id},{trainer_id}")  # type: ignore
-    channel_id = str(response["channel"]["id"])
+    response: SlackResponse = app.client.conversations_open(
+        users=f"{operator_id},{trainer_id}"
+    )  # type: ignore
+
+    channel_id = response.get("channel", {}).get("id")
 
     # Send an explainer message to the operator
     slackUtils.send(
@@ -550,7 +592,7 @@ def checkin_remove(ack, body, logger):
             user_name = "UNKNOWN"
 
         # Construct message
-        message = f'🚫{user_name} has been "deauthorised" for {machine_info["name"]} ({machine_info.get("level","⚪")}) by <@{body["user"]["id"]}> after following up with the operator'
+        message = f'🚫{user_name} has been "deauthorised" for {machine_info["name"]} ({machine_info.get("level", "⚪")}) by <@{body["user"]["id"]}> after following up with the operator'
 
         thread_ts = slackUtils.send(
             app=app,
@@ -565,8 +607,11 @@ def checkin_remove(ack, body, logger):
             )
 
         # Open a conversation with the operator and trainer
-        response: SlackResponse = app.client.conversations_open(users=f"{operator_id},{trainer_id}")  # type: ignore
-        channel_id = str(response["channel"]["id"])
+        response: SlackResponse = app.client.conversations_open(
+            users=f"{operator_id},{trainer_id}"
+        )  # type: ignore
+
+        channel_id = response.get("channel", {}).get("id")
 
         # Send an explainer message to the operator
         slackUtils.send(
@@ -606,12 +651,12 @@ with open("machines.json", "r") as f:
     machine_list: dict = json.load(f)
 
 logger.debug(
-    f'Loaded {len(cache["contacts"])} contacts and {len(cache["groups"])} groups'
+    f"Loaded {len(cache['contacts'])} contacts and {len(cache['groups'])} groups"
 )
 
 # Get our user ID
 info = app.client.auth_test()
-logger.debug(f'Connected as @{info["user"]} to {info["team"]}')
+logger.debug(f"Connected as @{info['user']} to {info['team']}")
 
 
 # Check whether we're running as a cron job
@@ -624,7 +669,9 @@ if "-c" in sys.argv:
     slack_users = []
     while slack_response.data.get("response_metadata", {}).get("next_cursor"):  # type: ignore
         slack_users += slack_response.data["members"]  # type: ignore
-        slack_response = app.client.users_list(cursor=slack_response.data["response_metadata"]["next_cursor"])  # type: ignore
+        slack_response = app.client.users_list(
+            cursor=slack_response.data["response_metadata"]["next_cursor"]  # type: ignore
+        )
     slack_users += slack_response.data["members"]  # type: ignore
 
     users = []

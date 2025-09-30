@@ -8,7 +8,8 @@ import json
 
 import requests
 
-from . import blocks, misc, slackUtils, strings, machines, tidyhq
+from . import blocks, misc, slackUtils, machines, tidyhq
+from editable_resources import strings
 
 # Set up logging
 
@@ -284,16 +285,16 @@ def authed_machines_modal(
     for machine in display_machines:
         if display_machines[machine]["id"] in authed_machines:
             formatted_tools += (
-                f'{display_machines[machine].get("level","⚪")}✅ {machine}\n'
+                f"{display_machines[machine].get('level', '⚪')}✅ {machine}\n"
             )
         else:
             formatted_tools += (
-                f'{display_machines[machine].get("level","⚪")}❌ {machine}'
+                f"{display_machines[machine].get('level', '⚪')}❌ {machine}"
             )
             # Check if the current machine has training info
             if "training" in display_machines[machine]:
                 formatted_tools += (
-                    f' (Training: {display_machines[machine]["training"]})'
+                    f" (Training: {display_machines[machine]['training']})"
                 )
             formatted_tools += "\n"
 
@@ -465,9 +466,9 @@ def select_users_modal(user, config, client, cache):
 
     # Create external selector
     external_selector = copy(blocks.external_select)
-    external_selector["placeholder"][
-        "text"
-    ] = strings.select_users_modal_picker_placeholder
+    external_selector["placeholder"]["text"] = (
+        strings.select_users_modal_picker_placeholder
+    )
     external_selector["action_id"] = "select_user"
     external_selector["min_query_length"] = 3
     external_selector["focus_on_load"] = True
@@ -550,11 +551,11 @@ def trainer_check_authed_machines_modal(
         for machine in display_machines:
             if display_machines[machine]["id"] in authed_machines:
                 formatted_tools += (
-                    f'{display_machines[machine].get("level","⚪")}✅ {machine}\n'
+                    f"{display_machines[machine].get('level', '⚪')}✅ {machine}\n"
                 )
             else:
                 formatted_tools += (
-                    f'{display_machines[machine].get("level","⚪")}❌ {machine}\n'
+                    f"{display_machines[machine].get('level', '⚪')}❌ {machine}\n"
                 )
 
     else:
@@ -659,9 +660,9 @@ def trainer_change_authed_machines_modal(
         while len(checkboxes) > 0:
             checkbox_container = copy(blocks.check_box_container)
             checkbox_container["text"]["text"] = text
-            checkbox_container["accessory"][
-                "action_id"
-            ] = f"trainer-{action}_training_write-{box}"
+            checkbox_container["accessory"]["action_id"] = (
+                f"trainer-{action}_training_write-{box}"
+            )
             checkbox_container["accessory"]["options"] = checkboxes[:10]
             block_list = slackUtils.add_block(
                 block_list=block_list, block=checkbox_container
@@ -712,7 +713,7 @@ def tool_selector_modal(config, client, cache, machine_list):
         for machine in sorted(all_machines[category], key=lambda k: k["name"]):
             option = copy(blocks.static_select_option)
             option["text"]["text"] = machine["name"]
-            option["value"] = f'{machine["id"]}-{category}'
+            option["value"] = f"{machine['id']}-{category}"
             option_group["options"].append(option)
 
         option_groups.append(option_group)

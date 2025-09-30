@@ -1,4 +1,4 @@
-from . import strings
+from editable_resources import strings
 
 divider = [{"type": "divider"}]
 text = [{"type": "section", "text": {"type": "mrkdwn", "text": ""}}]

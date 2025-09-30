@@ -14,7 +14,8 @@ from slack_bolt.adapter.socket_mode import SocketModeHandler
 from slack_sdk.web.client import WebClient  # for typing
 from slack_sdk.web.slack_response import SlackResponse  # for typing
 
-from util import formatters, misc, slackUtils, strings, tidyhq, blocks
+from util import formatters, misc, slackUtils, tidyhq, blocks
+from editable_resources import strings
 
 # Split up command line arguments
 # -v: verbose logging
@@ -88,7 +89,7 @@ if "-c" in sys.argv:
     )
     messages = response["messages"]
     logging.info(
-        f'Found {len(messages)} messages in channel {config["slack"]["notification_channel"]} in the last {longest_check_in} days'
+        f"Found {len(messages)} messages in channel {config['slack']['notification_channel']} in the last {longest_check_in} days"
     )
 
     for message in messages:

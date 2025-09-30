@@ -284,6 +284,8 @@ def write_training_changes(ack, body, event):
 
             # Check if this tool has a trainee message to send
             if "trainee_message" in machine_info.keys() and action == "add":
+                logging.info(f"Sending trainee message for {machine_info['name']}")
+
                 if machine_info["trainee_message"] in strings.trainee_messages:
                     message = strings.trainee_messages[machine_info["trainee_message"]]
 
@@ -298,6 +300,10 @@ def write_training_changes(ack, body, event):
                     # Send the message to the trainee
                     if slack_id:
                         slackUtils.send(message=message, app=app, slack_id=slack_id)
+                else:
+                    logging.error(
+                        f"Trainee message {machine_info['trainee_message']} not found in strings.trainee_messages"
+                    )
 
         else:
             logging.error(f"Failed to {action} {user} for {machine}")

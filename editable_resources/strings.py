@@ -56,9 +56,9 @@ checkin_induction_rejected = "Unfortunately your {} induction has been revoked. 
 
 
 trainee_messages = {}
-trainee_messages["member_induction"] = """Hi <@{trainee_slack_id}> :wave:
-
-<@{trainer}> has just signed you off as having completed your new member induction! :tada:
+trainee_messages[
+    "member_induction"
+] = """<@{trainer}> has just signed you off as having completed your new member induction! :tada:
 
 As a recap of what was covered, you should now be familiar with:
 • Where to find our <https://wiki.artifactory.org.au/en/constitution|Constitution> and <https://wiki.artifactory.org.au/en/docs/policies/bylaws|by-laws>

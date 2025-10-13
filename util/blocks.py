@@ -1,7 +1,8 @@
 from editable_resources import strings
 
 divider = [{"type": "divider"}]
-text = [{"type": "section", "text": {"type": "mrkdwn", "text": ""}}]
+base_text = {"type": "mrkdwn", "text": ""}
+text = [{"type": "section", "text": base_text}]
 context = [
     {
         "type": "context",
@@ -77,3 +78,5 @@ check_box = {
     "description": {"type": "mrkdwn", "text": ""},
     "value": "",
 }
+
+number_input = {"type": "number_input", "is_decimal_allowed": False, "action_id": ""}

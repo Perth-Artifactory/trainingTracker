@@ -687,6 +687,27 @@ def trainer_change_authed_machines_modal(
     if len(title) > 24:
         title = title[:21] + "..."
 
+    # If we're adding tools add an input block to record the time taken
+    # this is passed on to the token system
+
+    if action == "add":
+        time_input = copy(blocks.input_wrapper)
+        time_input["label"]["text"] = "Time taken (hours)"
+        time_input["element"] = copy(blocks.number_input)
+        time_input["element"]["action_id"] = "trainer-time_taken"
+        time_input["optional"] = True
+        time_input["block_id"] = "hours_input"
+        time_input["element"]["min_value"] = "1"
+        time_input["element"]["max_value"] = "100"
+        time_input["element"]["is_decimal_allowed"] = True
+        time_input["hint"] = copy(blocks.base_text)
+        time_input["hint"]["type"] = "plain_text"
+        time_input["hint"]["text"] = (
+            "These hours will be added as time debt via the token system. Partial hours can be entered as a decimal (e.g. 0.5 for half an hour)"
+        )
+
+        block_list = [time_input] + block_list
+
     modal["title"]["text"] = title
     modal["blocks"] = block_list
     modal["callback_id"] = "trainer_authed_tools_modal_write"

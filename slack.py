@@ -211,10 +211,16 @@ def write_training_changes(ack, body, event):
     # Decide whether we're adding or removing and to whom
     action, user = body["view"]["private_metadata"].split("-")
 
+    # Set a baseline blank Slack ID and user_name to catch times when the user isn't a slack user
+    slack_id = ""
+    user_name = ""
+
     # Get a list of machines to change
     machines = []
 
     for section in body["view"]["state"]["values"]:
+        if section == "hours_input":
+            continue
         for section2 in body["view"]["state"]["values"][section]:
             for option in body["view"]["state"]["values"][section][section2][
                 "selected_options"
@@ -230,7 +236,6 @@ def write_training_changes(ack, body, event):
             # Get info to construct message
             machine_info = tidyhq.get_group_info(id=machine, cache=cache, config=config)
             user_contact = contact = tidyhq.get_contact(contact_id=user, cache=cache)
-            slack_id = ""
             if user_contact:
                 user_name = tidyhq.format_contact(contact=user_contact)
                 # Check for a slack user ID
@@ -317,6 +322,36 @@ def write_training_changes(ack, body, event):
         else:
             logging.error(f"Failed to {action} {user} for {machine}")
 
+    # Get the time debt if provided
+    hours = (
+        body["view"]["state"]["values"]
+        .get("hours_input", {})
+        .get("trainer-time_taken", {})
+        .get("value", "")
+    )
+
+    try:
+        hours = float(hours)
+    except (ValueError, TypeError):
+        hours = 0
+
+    if hours > 0:
+        # Send a message to the token channel
+        slackUtils.send(
+            app=app,
+            channel=config["slack"]["token_channel"],
+            message=f"Time debt of {hours}h hours recorded by <@{body['user']['id']}> for training {user_name}",
+            metadata={
+                "event_type": "time_debt",
+                "event_payload": {
+                    "trainer": body["user"]["id"],
+                    "tidyhq_id": user,
+                    "slack_id": slack_id,
+                    "hours": hours,
+                },
+            },
+        )
+
     # Once all the changes have been made refresh the cache
     cache = tidyhq.fresh_cache(config=config, force=True)
 
@@ -326,7 +361,7 @@ checkbox_pattern = re.compile(r"trainer-(add|remove)_training_write-\d*")
 
 
 @app.action({"action_id": checkbox_pattern})
-def handle_some_action(ack, body, logger):
+def ignore_individual_checkbox(ack, body, logger):
     ack()
 
 

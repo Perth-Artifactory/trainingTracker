@@ -697,7 +697,7 @@ def trainer_change_authed_machines_modal(
         time_input["element"]["action_id"] = "trainer-time_taken"
         time_input["optional"] = True
         time_input["block_id"] = "hours_input"
-        time_input["element"]["min_value"] = "1"
+        time_input["element"]["min_value"] = "0"
         time_input["element"]["max_value"] = "100"
         time_input["element"]["is_decimal_allowed"] = True
         time_input["hint"] = copy(blocks.base_text)

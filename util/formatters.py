@@ -746,7 +746,7 @@ def tool_selector_modal(config, client, cache, machine_list):
 
         for machine in sorted(all_machines[category], key=lambda k: k["name"]):
             option = copy(blocks.static_select_option)
-            option["text"]["text"] = machine["name"]
+            option["text"]["text"] = f"{machine.get('level', '⚪')} {machine['name']}"
             option["value"] = f"{machine['id']}-{category}"
             option_group["options"].append(option)
 
@@ -787,6 +787,9 @@ def tool_selector_modal(config, client, cache, machine_list):
 
 
 def machine_report_modal(config, cache, machine_list, machine):
+    # Get info about the machine
+    machine_info = tidyhq.get_group_info(id=machine, cache=cache, config=config)
+
     # Get all users for machine
     users = machines.machine(machine_id=machine, cache=cache)
     users_display = []
@@ -796,7 +799,29 @@ def machine_report_modal(config, cache, machine_list, machine):
     # Sort users by name
     users_display = sorted(users_display)
 
+    # Construct tool text
+    tool_text = f"""
+*Tool name:* {machine_info["name"]}
+*Risk level:* {machine_info.get("level", "⚪")}
+*Training type:* {machine_info.get("training", "N/A")}
+*Total authorised users:* {len(users_display)}
+*Days until follow up:* {machine_info.get("first_use_check_in", "N/A")}
+*Exclusive with*: {machine_info.get("exclusive_with", "N/A")}
+*Children*: {machine_info.get("children", "N/A")}
+    """
+    tool_text = tool_text.strip()
+
     block_list = []
+
+    # Add machine info
+    block_list = slackUtils.add_block(block_list=block_list, block=blocks.text)
+
+    block_list = slackUtils.inject_text(
+        block_list=block_list,
+        text=tool_text,
+    )
+
+    block_list = slackUtils.add_block(block_list=block_list, block=blocks.divider)  # type: ignore
 
     # Construct the list block
     list_block = copy(blocks.text)

@@ -175,7 +175,7 @@ def get_name(id, client: WebClient) -> str:
     return r.data["user"]["profile"]["display_name"]  # type: ignore
 
 
-def inject_text(block_list, text) -> dict[Any, Any] | list[Any] | Any:
+def inject_text(block_list, text) -> dict[Any, Any] | list[Any]:
     block_list = copy(block_list)
     if type(blocks) == dict:
         if "type" not in block_list:
@@ -227,7 +227,7 @@ def inject_element(body, element, action_id=None):
     return body
 
 
-def add_block(block_list: list, block: list | dict) -> list[Any]:
+def add_block(block_list: list, block: list | dict) -> list:
     block_list = copy(block_list)
     if type(block) == dict:
         block_list.append(block)

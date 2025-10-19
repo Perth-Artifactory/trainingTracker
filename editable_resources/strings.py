@@ -12,7 +12,7 @@ medium_risk_header = "Medium Risk 🟡"
 medium_risk_explainer = "These tools can easily hurt you, others, or the tool. To use these tools you must either complete a short induction with one of our authorised trainers or demonstrate to them that you can use this tool safely."
 
 high_risk_header = "High Risk 🔴"
-high_risk_explainer = "These tools can cause serious injury, are easy to damage, or both. An induction is required before using these tools. You must go through the Artifactory’s training on high risk tools, even if you have used similar (or identical) tools elsewhere. Only specific people are authorised to train on specific high risk tools."
+high_risk_explainer = "These tools can cause serious injury, are easy to damage, or both. An induction with an authorised trainer is required before using these tools. You must go through the Artifactory’s training on high risk tools, even if you have used similar (or identical) tools elsewhere."
 
 check_training_header = "Check your training"
 

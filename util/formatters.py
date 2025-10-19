@@ -1,14 +1,15 @@
 import logging
 import os
 from copy import deepcopy as copy
-from datetime import datetime
+from datetime import datetime, timedelta
 from pprint import pprint
 from typing import Any, Literal
 import json
 
 import requests
 
-from . import blocks, misc, slackUtils, strings, machines, tidyhq
+from . import blocks, misc, slackUtils, machines, tidyhq
+from editable_resources import strings
 
 # Set up logging
 
@@ -284,16 +285,16 @@ def authed_machines_modal(
     for machine in display_machines:
         if display_machines[machine]["id"] in authed_machines:
             formatted_tools += (
-                f'{display_machines[machine].get("level","⚪")}✅ {machine}\n'
+                f"{display_machines[machine].get('level', '⚪')}✅ {machine}\n"
             )
         else:
             formatted_tools += (
-                f'{display_machines[machine].get("level","⚪")}❌ {machine}'
+                f"{display_machines[machine].get('level', '⚪')}❌ {machine}"
             )
             # Check if the current machine has training info
             if "training" in display_machines[machine]:
                 formatted_tools += (
-                    f' (Training: {display_machines[machine]["training"]})'
+                    f" (Training: {display_machines[machine]['training']})"
                 )
             formatted_tools += "\n"
 
@@ -465,9 +466,9 @@ def select_users_modal(user, config, client, cache):
 
     # Create external selector
     external_selector = copy(blocks.external_select)
-    external_selector["placeholder"][
-        "text"
-    ] = strings.select_users_modal_picker_placeholder
+    external_selector["placeholder"]["text"] = (
+        strings.select_users_modal_picker_placeholder
+    )
     external_selector["action_id"] = "select_user"
     external_selector["min_query_length"] = 3
     external_selector["focus_on_load"] = True
@@ -550,11 +551,11 @@ def trainer_check_authed_machines_modal(
         for machine in display_machines:
             if display_machines[machine]["id"] in authed_machines:
                 formatted_tools += (
-                    f'{display_machines[machine].get("level","⚪")}✅ {machine}\n'
+                    f"{display_machines[machine].get('level', '⚪')}✅ {machine}\n"
                 )
             else:
                 formatted_tools += (
-                    f'{display_machines[machine].get("level","⚪")}❌ {machine}\n'
+                    f"{display_machines[machine].get('level', '⚪')}❌ {machine}\n"
                 )
 
     else:
@@ -659,9 +660,9 @@ def trainer_change_authed_machines_modal(
         while len(checkboxes) > 0:
             checkbox_container = copy(blocks.check_box_container)
             checkbox_container["text"]["text"] = text
-            checkbox_container["accessory"][
-                "action_id"
-            ] = f"trainer-{action}_training_write-{box}"
+            checkbox_container["accessory"]["action_id"] = (
+                f"trainer-{action}_training_write-{box}"
+            )
             checkbox_container["accessory"]["options"] = checkboxes[:10]
             block_list = slackUtils.add_block(
                 block_list=block_list, block=checkbox_container
@@ -685,6 +686,27 @@ def trainer_change_authed_machines_modal(
 
     if len(title) > 24:
         title = title[:21] + "..."
+
+    # If we're adding tools add an input block to record the time taken
+    # this is passed on to the token system
+
+    if action == "add":
+        time_input = copy(blocks.input_wrapper)
+        time_input["label"]["text"] = "Time taken (hours)"
+        time_input["element"] = copy(blocks.number_input)
+        time_input["element"]["action_id"] = "trainer-time_taken"
+        time_input["optional"] = True
+        time_input["block_id"] = "hours_input"
+        time_input["element"]["min_value"] = "0"
+        time_input["element"]["max_value"] = "100"
+        time_input["element"]["is_decimal_allowed"] = True
+        time_input["hint"] = copy(blocks.base_text)
+        time_input["hint"]["type"] = "plain_text"
+        time_input["hint"]["text"] = (
+            "These hours will be added as time debt via the token system. Partial hours can be entered as a decimal (e.g. 0.5 for half an hour)"
+        )
+
+        block_list = [time_input] + block_list
 
     modal["title"]["text"] = title
     modal["blocks"] = block_list
@@ -712,7 +734,7 @@ def tool_selector_modal(config, client, cache, machine_list):
         for machine in sorted(all_machines[category], key=lambda k: k["name"]):
             option = copy(blocks.static_select_option)
             option["text"]["text"] = machine["name"]
-            option["value"] = f'{machine["id"]}-{category}'
+            option["value"] = f"{machine['id']}-{category}"
             option_group["options"].append(option)
 
         option_groups.append(option_group)
@@ -780,3 +802,68 @@ def machine_report_modal(config, cache, machine_list, machine):
     modal["blocks"] = block_list
 
     return modal
+
+
+def follow_up_buttons(machine, follow_up_days, operator_id, trainer_id, has_slack=True):
+    # Calculate human readable date for follow up days
+    follow_up_date = datetime.now() + timedelta(days=int(follow_up_days))
+    follow_up_date_str = follow_up_date.strftime("%B %d (%A)")
+
+    block_list = []
+
+    # Create explainer text
+    block_list = slackUtils.add_block(
+        block_list=block_list,
+        block=slackUtils.inject_text(
+            block_list=blocks.text,
+            text=strings.check_in_explainer_trainer.format(
+                follow_up_days, follow_up_date_str
+            ),
+        ),
+    )
+
+    block_list = slackUtils.add_block(block_list=block_list, block=blocks.divider)
+
+    # Create action block
+    button_actions = copy(blocks.actions)
+
+    # Create approve button
+    button_actions = slackUtils.inject_button(
+        actions=button_actions,
+        text="Approve",
+        value=f"{machine['id']}-{operator_id}-{trainer_id}",
+        action_id="checkin-approve",
+        style="primary",
+    )
+
+    if has_slack:
+        # Create contact button
+        button_actions = slackUtils.inject_button(
+            actions=button_actions,
+            text="Contact",
+            value=f"{machine['id']}-{operator_id}-{trainer_id}",
+            action_id="checkin-contact",
+        )
+
+    # Create remove button
+    button_actions = slackUtils.inject_button(
+        actions=button_actions,
+        text="Remove",
+        value=f"{machine['id']}-{operator_id}-{trainer_id}",
+        action_id="checkin-remove",
+        style="danger",
+    )
+
+    block_list = slackUtils.add_block(block_list=block_list, block=button_actions)
+
+    if not has_slack:
+        block_list = slackUtils.add_block(block_list=block_list, block=blocks.divider)
+        block_list = slackUtils.add_block(
+            block_list=block_list,
+            block=slackUtils.inject_text(
+                block_list=blocks.text,
+                text=strings.check_in_no_slack.format(operator_id),
+            ),
+        )
+
+    return block_list

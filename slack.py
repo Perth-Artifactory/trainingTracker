@@ -1,12 +1,13 @@
 import json
 import logging
 import os
+import re
 import sys
 import time
+from copy import deepcopy as copy
+from datetime import datetime
 from pprint import pprint
 from typing import Any, Literal
-import re
-from copy import deepcopy as copy
 
 import requests
 from slack_bolt import App
@@ -14,7 +15,8 @@ from slack_bolt.adapter.socket_mode import SocketModeHandler
 from slack_sdk.web.client import WebClient  # for typing
 from slack_sdk.web.slack_response import SlackResponse  # for typing
 
-from util import formatters, misc, slackUtils, strings, tidyhq, blocks
+from util import blocks, formatters, misc, slackUtils, tidyhq
+from editable_resources import strings
 
 # Split up command line arguments
 # -v: verbose logging
@@ -68,7 +70,12 @@ def refresh_home(ack, body, client):
     ack()
     global cache
     cache = tidyhq.fresh_cache(cache=cache, config=config)
-    slackUtils.updateHome(user=body["user"]["id"], client=client, config=config, authed_slack_users=authed_slack_users, contacts=contacts, current_members=current_members, cache=cache)  # type: ignore
+    slackUtils.updateHome(
+        user=body["user"]["id"],
+        client=client,
+        config=config,
+        cache=cache,
+    )  # type: ignore
 
 
 # Category buttons
@@ -204,47 +211,139 @@ def write_training_changes(ack, body, event):
     # Decide whether we're adding or removing and to whom
     action, user = body["view"]["private_metadata"].split("-")
 
+    # Set a baseline blank Slack ID and user_name to catch times when the user isn't a slack user
+    slack_id = ""
+    user_name = ""
+
     # Get a list of machines to change
     machines = []
 
     for section in body["view"]["state"]["values"]:
+        if section == "hours_input":
+            continue
         for section2 in body["view"]["state"]["values"][section]:
             for option in body["view"]["state"]["values"][section][section2][
                 "selected_options"
             ]:
                 machines.append(option["value"])
 
+    user_contact = tidyhq.get_contact(contact_id=user, cache=cache)
+    if user_contact:
+        user_name = tidyhq.format_contact(contact=user_contact)
+        # Check for a slack user ID
+        slack_id = tidyhq.get_slack_id(config=config, contact=user_contact, cache=cache)
+        if slack_id:
+            user_name += f" (<@{slack_id}>)"
+    else:
+        user_name = "UNKNOWN"
+
+    children = []
+    exclusive = []
+
     for machine in machines:
         success = tidyhq.update_group_membership(
             tidyhq_id=user, group_id=machine, action=action, config=config
         )
         if success:
-            logging.info(f"{action}'d {user} for {machine}")
-            # Get info to construct message
             machine_info = tidyhq.get_group_info(id=machine, cache=cache, config=config)
-            user_contact = contact = tidyhq.get_contact(contact_id=user, cache=cache)
-            if user_contact:
-                user_name = tidyhq.format_contact(contact=user_contact)
-            else:
-                user_name = "UNKNOWN"
 
-            # Construct message
-            message = f'{"✅" if action == "add" else "🚫"}{user_name} has been {"authorised" if action == "add" else "deauthorised"} for {machine_info["name"]} ({machine_info.get("level","⚪")}) by <@{body["user"]["id"]}>'
-
-            slackUtils.send(
+            slackUtils.notify_training(
+                action=action,
+                trainee=user,
+                trainee_formatted=user_name,
+                trainee_slack_id=slack_id,
+                machine_info=machine_info,
+                tidyhq_cache=cache,
+                config=config,
+                trainer=body["user"]["id"],
                 app=app,
-                channel=config["slack"]["notification_channel"],
-                message=message,
             )
 
-            # Log the change to file
-            with open("tidyhq_changes.log", "a") as f:
-                f.write(
-                    f"{time.time()},{body['user']['id']},{action},{user},{machine}\n"
-                )
-
+            if machine_info.get("children", False):
+                children += machine_info["children"].split(",")
+            if machine_info.get("exclusive_with", False):
+                exclusive += machine_info["exclusive_with"].split(",")
         else:
             logging.error(f"Failed to {action} {user} for {machine}")
+
+    # Handle children
+    # These are groups that should be added when the parent is added
+    for machine in set(children):
+        success = tidyhq.update_group_membership(
+            tidyhq_id=user, group_id=machine, action=action, config=config
+        )
+        if success:
+            machine_info = tidyhq.get_group_info(id=machine, cache=cache, config=config)
+
+            slackUtils.notify_training(
+                action=action,
+                trainee=user,
+                trainee_formatted=user_name,
+                trainee_slack_id=slack_id,
+                machine_info=machine_info,
+                tidyhq_cache=cache,
+                config=config,
+                trainer=body["user"]["id"],
+                app=app,
+            )
+        else:
+            logging.error(f"Failed to {action} {user} for {machine}")
+
+    # Handle exclusive groups
+    # These are groups that should be removed when the current group is added
+    if action == "add":
+        for machine in set(exclusive):
+            success = tidyhq.update_group_membership(
+                tidyhq_id=user, group_id=machine, action="remove", config=config
+            )
+            if success:
+                machine_info = tidyhq.get_group_info(
+                    id=machine, cache=cache, config=config
+                )
+
+                slackUtils.notify_training(
+                    action="remove",
+                    trainee=user,
+                    trainee_formatted=user_name,
+                    trainee_slack_id=slack_id,
+                    machine_info=machine_info,
+                    tidyhq_cache=cache,
+                    config=config,
+                    trainer=body["user"]["id"],
+                    app=app,
+                )
+            else:
+                logging.error(f"Failed to remove {user} for {machine}")
+
+    # Get the time debt if provided
+    hours = (
+        body["view"]["state"]["values"]
+        .get("hours_input", {})
+        .get("trainer-time_taken", {})
+        .get("value", "")
+    )
+
+    try:
+        hours = float(hours)
+    except (ValueError, TypeError):
+        hours = 0
+
+    if hours > 0:
+        # Send a message to the token channel
+        slackUtils.send(
+            app=app,
+            channel=config["slack"]["token_channel"],
+            message=f"Time debt of {hours}h hours recorded by <@{body['user']['id']}> for training {user_name}",
+            metadata={
+                "event_type": "time_debt",
+                "event_payload": {
+                    "trainer": body["user"]["id"],
+                    "tidyhq_id": user,
+                    "slack_id": slack_id,
+                    "hours": hours,
+                },
+            },
+        )
 
     # Once all the changes have been made refresh the cache
     cache = tidyhq.fresh_cache(config=config, force=True)
@@ -255,7 +354,7 @@ checkbox_pattern = re.compile(r"trainer-(add|remove)_training_write-\d*")
 
 
 @app.action({"action_id": checkbox_pattern})
-def handle_some_action(ack, body, logger):
+def ignore_individual_checkbox(ack, body, logger):
     ack()
 
 
@@ -323,7 +422,7 @@ def handle_view_submission_events(ack, body, client):
 @app.action("trainer-refresh")
 def refresh_tidyhq(ack, body, client):
     ack()
-    logging.info(f'User {body["user"]["id"]} refreshed data from TidyHQ')
+    logging.info(f"User {body['user']['id']} refreshed data from TidyHQ")
     global cache
     cache = tidyhq.fresh_cache(config=config, force=True)
     # Refresh the user's home
@@ -388,6 +487,202 @@ def send_user_options(ack, body):
     ack(option_groups=option_groups)
 
 
+# Training Checkins
+
+
+@app.action("checkin-contact")
+def checkin_contact(ack, body, logger):
+    ack()
+
+    # Get information from the button
+    info = body["actions"][0]["value"].split("-")
+    machine_id = info[0]
+    operator_id = info[1]
+    trainer_id = info[2]
+
+    # Calculate induction date
+    sign_off_date = body["container"]["thread_ts"]
+    sign_off_days_ago = (time.time() - float(sign_off_date)) // 86400 + 1
+
+    # Get machine name
+    machine_info = tidyhq.get_group_info(id=machine_id, cache=cache, config=config)
+
+    # Open a conversation with the operator and trainer
+    response: SlackResponse = app.client.conversations_open(
+        users=f"{operator_id},{trainer_id}"
+    )  # type: ignore
+    if not response:
+        logger.error(f"Failed to open conversation with {operator_id} and {trainer_id}")
+        return
+
+    channel_id = response.get("channel", {}).get("id")
+
+    # Send an explainer message to the operator
+    slackUtils.send(
+        app=app,
+        channel=channel_id,
+        message=strings.checkin_explainer_operator.format(
+            machine_info["name"], int(sign_off_days_ago)
+        ),
+    )
+
+    # Send a message to the trainer channel letting other trainers know someone is following up
+    slackUtils.send(
+        app=app,
+        channel=config["slack"]["notification_channel"],
+        message=f"<@{body['user']['id']}> triggered a conversation regarding this induction",
+        thread_ts=body["container"]["thread_ts"],
+    )
+
+
+@app.action("checkin-approve")
+def checkin_approve(ack, body, logger):
+    ack()
+    # Get information from the button
+    info = body["actions"][0]["value"].split("-")
+    machine_id = info[0]
+    operator_id = info[1]
+    trainer_id = info[2]
+
+    # Calculate induction date
+    sign_off_date = body["container"]["thread_ts"]
+    sign_off_days_ago = (time.time() - float(sign_off_date)) // 86400 + 1
+
+    # Get machine name
+    machine_info = tidyhq.get_group_info(id=machine_id, cache=cache, config=config)
+
+    # Open a conversation with the operator and trainer
+    response: SlackResponse = app.client.conversations_open(
+        users=f"{operator_id},{trainer_id}"
+    )  # type: ignore
+
+    channel_id = response.get("channel", {}).get("id")
+
+    # Send an explainer message to the operator
+    slackUtils.send(
+        app=app,
+        channel=channel_id,
+        message=strings.checkin_induction_approved.format(machine_info["name"]),
+    )
+
+    # Update the original message
+    app.client.chat_update(
+        channel=config["slack"]["notification_channel"],
+        ts=body["container"]["message_ts"],
+        text=strings.check_in_explainer_finished.format(
+            machine_info["first_use_check_in"]
+        ),
+    )
+
+    # Send notification that the induction has been approved
+    slackUtils.send(
+        app=app,
+        channel=config["slack"]["notification_channel"],
+        thread_ts=body["container"]["message_ts"],
+        message=f"This induction was confirmed by <@{body['user']['id']}>",
+    )
+
+
+@app.action("checkin-remove")
+def checkin_remove(ack, body, logger):
+    ack()
+
+    # We're going to be updating the cache later on
+    global cache
+
+    # Get information from the button
+    info = body["actions"][0]["value"].split("-")
+    machine_id = info[0]
+    operator_id = info[1]
+    trainer_id = info[2]
+
+    # Get TidyHQ contact ID
+    contact_id = tidyhq.translate_slack_to_tidyhq(
+        slack_id=operator_id, cache=cache, config=config
+    )
+
+    # Calculate induction date
+    sign_off_date = body["container"]["thread_ts"]
+    sign_off_days_ago = (time.time() - float(sign_off_date)) // 86400 + 1
+
+    # Get machine name
+    machine_info = tidyhq.get_group_info(id=machine_id, cache=cache, config=config)
+
+    # Remove the induction
+
+    # Check if log file exists and create it if not
+    try:
+        with open("tidyhq_changes.log", "r") as f:
+            pass
+    except FileNotFoundError:
+        with open("tidyhq_changes.log", "w") as f:
+            pass
+
+    action = "remove"
+    success = tidyhq.update_group_membership(
+        tidyhq_id=contact_id, group_id=machine_id, action=action, config=config
+    )
+    if success:
+        logging.info(f"{action}'d {contact_id} for {machine_id}")
+        # Get info to construct message
+        machine_info = tidyhq.get_group_info(id=machine_id, cache=cache, config=config)
+        user_contact = contact = tidyhq.get_contact(contact_id=contact_id, cache=cache)
+        if user_contact:
+            user_name = tidyhq.format_contact(contact=user_contact)
+            # Check for a slack user ID
+            slack_id = operator_id
+        else:
+            user_name = "UNKNOWN"
+
+        # Construct message
+        message = f'🚫{user_name} has been "deauthorised" for {machine_info["name"]} ({machine_info.get("level", "⚪")}) by <@{body["user"]["id"]}> after following up with the operator'
+
+        thread_ts = slackUtils.send(
+            app=app,
+            channel=config["slack"]["notification_channel"],
+            message=message,
+        )
+
+        # Log the change to file
+        with open("tidyhq_changes.log", "a") as f:
+            f.write(
+                f"{time.time()},{body['user']['id']},{action},{contact_id},{machine_id}\n"
+            )
+
+        # Open a conversation with the operator and trainer
+        response: SlackResponse = app.client.conversations_open(
+            users=f"{operator_id},{trainer_id}"
+        )  # type: ignore
+
+        channel_id = response.get("channel", {}).get("id")
+
+        # Send an explainer message to the operator
+        slackUtils.send(
+            app=app,
+            channel=channel_id,
+            message=strings.checkin_induction_rejected.format(machine_info["name"]),
+        )
+
+        # Update the original message
+        app.client.chat_update(
+            channel=config["slack"]["notification_channel"],
+            ts=body["container"]["message_ts"],
+            text=strings.check_in_explainer_finished.format(
+                machine_info["first_use_check_in"]
+            ),
+        )
+
+        slackUtils.send(
+            app=app,
+            channel=config["slack"]["notification_channel"],
+            thread_ts=body["container"]["thread_ts"],
+            message=f"This induction was removed by <@{body['user']['id']}>",
+        )
+
+        # Refresh the cache to reflect the change
+        cache = tidyhq.fresh_cache(config=config, force=True)
+
+
 # Get all linked users from TidyHQ
 
 logger.info("Getting TidyHQ data from cache")
@@ -399,12 +694,12 @@ with open("machines.json", "r") as f:
     machine_list: dict = json.load(f)
 
 logger.debug(
-    f'Loaded {len(cache["contacts"])} contacts and {len(cache["groups"])} groups'
+    f"Loaded {len(cache['contacts'])} contacts and {len(cache['groups'])} groups"
 )
 
 # Get our user ID
 info = app.client.auth_test()
-logger.debug(f'Connected as @{info["user"]} to {info["team"]}')
+logger.debug(f"Connected as @{info['user']} to {info['team']}")
 
 
 # Check whether we're running as a cron job
@@ -414,7 +709,13 @@ if "-c" in sys.argv:
 
     # Get a list of all users from slack
     slack_response = app.client.users_list()
-    slack_users = slack_response.data["members"]  # type: ignore
+    slack_users = []
+    while slack_response.data.get("response_metadata", {}).get("next_cursor"):  # type: ignore
+        slack_users += slack_response.data["members"]  # type: ignore
+        slack_response = app.client.users_list(
+            cursor=slack_response.data["response_metadata"]["next_cursor"]  # type: ignore
+        )
+    slack_users += slack_response.data["members"]  # type: ignore
 
     users = []
 

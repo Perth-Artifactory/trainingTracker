@@ -312,6 +312,8 @@ def list_all(cache, config, filters: list = ["slack"]):
             for field in contact["custom_fields"]:
                 if field["id"] == config["tidyhq"]["ids"]["slack"]:
                     contacts.append(contact["id"])
+        else:
+            contacts.append(contact["id"])
 
     # It's possible for a contact to be in the list twice, so we need to dedupe
     contacts = list(set(contacts))
@@ -341,3 +343,18 @@ def update_group_membership(tidyhq_id, group_id, action, config):
     else:
         logging.error(f"Error updating group membership: {r.status_code}")
         return False
+
+
+def get_slack_id(config, contact=None, id=None, cache=None):
+    if not contact and not id:
+        raise Exception("Must provide either contact or id")
+
+    if not contact:
+        contact = get_contact(contact_id=id, cache=cache)
+        if not contact:
+            return None
+
+    for field in contact["custom_fields"]:
+        if field["id"] == config["tidyhq"]["ids"]["slack"]:
+            return field["value"]
+    return None

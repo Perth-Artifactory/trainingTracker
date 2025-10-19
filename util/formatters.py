@@ -51,7 +51,7 @@ def home(user, config, client, cache, machine_raw=None):
 
     # If the user is not authed for any machines, authed_machines will be None. We want it to be an empty dict instead so it doesn't break iteration
     if not authed_machines:
-        authed_machines = []
+        authed_machines = {}
 
     # Calculate buttons
     button_actions = copy(blocks.actions)
@@ -61,14 +61,20 @@ def home(user, config, client, cache, machine_raw=None):
     tool_categories = machines.all(cache=cache, config=config, machines=machine_raw)
 
     for category in tool_categories:
-        # Calculate total while accounting for excluded machines
+        # Calculate total while accounting for excluded machines and probationary sign offs
         total = 0
         for machine in tool_categories[category]:
             if machine not in machine_raw.get("exclude", []):
+                if (
+                    machine.get("level", "⚪") == "🅿️"
+                    and machine not in authed_machines[category]
+                ):
+                    continue
+
                 total += 1
 
         # Create button text
-        if authed_machines != None:
+        if authed_machines:
             if category in authed_machines:
                 button_text = f"{category.capitalize()} ({len(authed_machines[category])}/{total})"
                 if len(authed_machines[category]) == total:
@@ -120,6 +126,16 @@ def home(user, config, client, cache, machine_raw=None):
             )
         )
 
+    # Remove probationary sign offs from all machines if they're not present in auth'd machines
+    for machine in all_machines_flat:
+        machine_info = tidyhq.get_group_info(id=machine, cache=cache, config=config)
+
+        if (
+            machine_info.get("level", "⚪") == "🅿️"
+            and machine not in authed_machines_flat
+        ):
+            all_machines_flat.remove(machine)
+
     if authed_machines:
         button_text = f"All ({len(authed_machines_flat)}/{len(all_machines_flat)})"
         if len(authed_machines_flat) >= len(all_machines_flat):
@@ -156,12 +172,21 @@ def home(user, config, client, cache, machine_raw=None):
     if authed_machines:
         # Check if the user is a trainer
         if slackUtils.is_trainer(user=user, client=client, config=config):
-            block_list = slackUtils.add_block(
-                block_list=block_list, block=blocks.divider
-            )
+            trainer_blocks = []
 
             # Add trainer explainer
-            block_list = home_trainer(block_list)
+            trainer_blocks = slackUtils.add_block(
+                block_list=trainer_blocks,
+                block=slackUtils.inject_text(
+                    block_list=blocks.header, text=strings.trainer_header
+                ),
+            )
+            trainer_blocks = slackUtils.add_block(
+                block_list=trainer_blocks,
+                block=slackUtils.inject_text(
+                    block_list=blocks.text, text=strings.trainer_explainer
+                ),
+            )
 
             # Add trainer buttons
             button_actions = copy(blocks.actions)
@@ -184,11 +209,16 @@ def home(user, config, client, cache, machine_raw=None):
                 value="trainer-refresh",
                 action_id="trainer-refresh",
             )
-            block_list = slackUtils.add_block(
-                block_list=block_list, block=button_actions
+            trainer_blocks = slackUtils.add_block(
+                block_list=trainer_blocks, block=button_actions
             )
 
-    # pprint(block_list)
+            trainer_blocks = slackUtils.add_block(
+                block_list=trainer_blocks, block=blocks.divider
+            )
+
+            block_list = trainer_blocks + block_list
+
     return block_list
 
 
@@ -433,23 +463,6 @@ def home_requesting_training(block_list: list) -> list[Any]:
         block_list=block_list,
         block=slackUtils.inject_text(
             block_list=blocks.text, text=strings.requesting_training_explainer
-        ),
-    )
-
-    return block_list
-
-
-def home_trainer(block_list: list) -> list[Any]:
-    block_list = slackUtils.add_block(
-        block_list=block_list,
-        block=slackUtils.inject_text(
-            block_list=blocks.header, text=strings.trainer_header
-        ),
-    )
-    block_list = slackUtils.add_block(
-        block_list=block_list,
-        block=slackUtils.inject_text(
-            block_list=blocks.text, text=strings.trainer_explainer
         ),
     )
 

@@ -40,14 +40,14 @@ def format_contact(contact: dict, slack: bool = False, config={}) -> str:
     n = ""
     s = ""
     if contact["nick_name"]:
-        n = f' ({contact["nick_name"]})'
+        n = f" ({contact['nick_name']})"
 
     if slack and config:
         # Check if the user has a slack ID
         for field in contact["custom_fields"]:
             if field["id"] == config["tidyhq"]["ids"]["slack"]:
                 if field["value"]:
-                    s = f' <@{field["value"]}>'
+                    s = f" <@{field['value']}>"
                     break
     elif slack and not config:
         logging.error("No config provided")
@@ -59,7 +59,7 @@ def format_contact(contact: dict, slack: bool = False, config={}) -> str:
     if not contact["last_name"]:
         contact["last_name"] = "Unknown"
 
-    return f'{contact.get("first_name","Unknown").capitalize()} {contact.get("last_name","Unknown").capitalize()}{n}{s}'
+    return f"{contact.get('first_name', 'Unknown').capitalize()} {contact.get('last_name', 'Unknown').capitalize()}{n}{s}"
 
 
 def get_contact(contact_id, cache):
@@ -183,8 +183,14 @@ def get_group_info(
                 key, value = line.split("=", maxsplit=1)
                 processed[key.strip()] = value.strip()
     name = group["label"].replace(config["tidyhq"]["group_prefix"], "")
+
     processed["name"] = name
     processed["id"] = group["id"]
+
+    if "🅿️" in name and "level" not in processed:
+        processed["level"] = "🅿️"
+        processed["name"] = processed["name"].replace("🅿️", "").strip()
+
     return processed
 
 
@@ -197,7 +203,7 @@ def setup_cache(config) -> dict[str, Any]:
     logging.debug("Getting groups from TidyHQ")
     cache["groups"] = query(cat="groups", config=config)
 
-    logging.debug(f'Got {len(cache["groups"])} groups from TidyHQ')
+    logging.debug(f"Got {len(cache['groups'])} groups from TidyHQ")
 
     # Trim contact data to just what we need
     cache["contacts"] = []

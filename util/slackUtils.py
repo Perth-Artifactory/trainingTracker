@@ -252,7 +252,6 @@ def notify_training(
     trainee_formatted: str,
     trainee_slack_id: str | None,
     machine_info: dict,
-    tidyhq_cache: dict,
     config: dict,
     trainer: str,
     app: App,

@@ -233,7 +233,7 @@ def authed_machines_modal(
 
     # If the user is not authed for any machines, authed_machines will be None. We want it to be an empty dict instead so it doesn't break iteration
     if not authed_machines:
-        authed_machines = []
+        authed_machines = {}
 
     block_list: list[dict] = []
     block_list = slackUtils.add_block(
@@ -317,6 +317,9 @@ def authed_machines_modal(
             formatted_tools += (
                 f"{display_machines[machine].get('level', '⚪')}✅ {machine}\n"
             )
+        elif display_machines[machine].get("level", "⚪") == "🅿️":
+            # Skip probationary sign offs the user doesn't have
+            continue
         else:
             formatted_tools += (
                 f"{display_machines[machine].get('level', '⚪')}❌ {machine}"

@@ -46,9 +46,6 @@ root_logger.addHandler(ch)
 # Set up loop logging
 logger = logging.getLogger("main loop")
 
-# Log cli arguments
-logger.info(f"CLI arguments: {sys.argv}")
-
 # Changing logging level for slack_bolt to info
 slack_logger = logging.getLogger("slack_bolt")
 slack_logger.setLevel(logging.INFO)

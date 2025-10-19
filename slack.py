@@ -227,100 +227,93 @@ def write_training_changes(ack, body, event):
             ]:
                 machines.append(option["value"])
 
+    user_contact = tidyhq.get_contact(contact_id=user, cache=cache)
+    if user_contact:
+        user_name = tidyhq.format_contact(contact=user_contact)
+        # Check for a slack user ID
+        slack_id = tidyhq.get_slack_id(config=config, contact=user_contact, cache=cache)
+        if slack_id:
+            user_name += f" (<@{slack_id}>)"
+    else:
+        user_name = "UNKNOWN"
+
+    children = []
+    exclusive = []
+
     for machine in machines:
         success = tidyhq.update_group_membership(
             tidyhq_id=user, group_id=machine, action=action, config=config
         )
         if success:
-            logging.info(f"{action}'d {user} for {machine}")
-            # Get info to construct message
             machine_info = tidyhq.get_group_info(id=machine, cache=cache, config=config)
-            user_contact = contact = tidyhq.get_contact(contact_id=user, cache=cache)
-            if user_contact:
-                user_name = tidyhq.format_contact(contact=user_contact)
-                # Check for a slack user ID
-                slack_id = tidyhq.get_slack_id(
-                    config=config, contact=user_contact, cache=cache
-                )
-                if slack_id:
-                    user_name += f" (<@{slack_id}>)"
-            else:
-                user_name = "UNKNOWN"
 
-            # Construct message
-            message = f"{'✅' if action == 'add' else '🚫'}{user_name} has been {'authorised' if action == 'add' else 'deauthorised'} for {machine_info['name']} ({machine_info.get('level', '⚪')}) by <@{body['user']['id']}>"
-
-            thread_ts = slackUtils.send(
+            slackUtils.notify_training(
+                action=action,
+                trainee=user,
+                trainee_formatted=user_name,
+                trainee_slack_id=slack_id,
+                machine_info=machine_info,
+                tidyhq_cache=cache,
+                config=config,
+                trainer=body["user"]["id"],
                 app=app,
-                channel=config["slack"]["notification_channel"],
-                message=message,
-                metadata={
-                    "event_type": f"training_{action}",
-                    "event_payload": {
-                        "trainer": body["user"]["id"],
-                        "operator": user,
-                        "machine": machine,
-                        "action": action,
-                    },
-                },
             )
 
-            # Log the change to file
-            with open("tidyhq_changes.log", "a") as f:
-                f.write(
-                    f"{time.time()},{body['user']['id']},{action},{user},{machine}\n"
-                )
-
-            # Check if this tool requires a follow up check in
-            if "first_use_check_in" in machine_info.keys() and action == "add":
-                slackUtils.send(
-                    app=app,
-                    channel=config["slack"]["notification_channel"],
-                    message="This tool needs a follow up",
-                    blocks=formatters.follow_up_buttons(
-                        machine=machine_info,
-                        follow_up_days=machine_info["first_use_check_in"],
-                        operator_id=slack_id if slack_id else user,
-                        trainer_id=body["user"]["id"],
-                        has_slack=slack_id is not None,
-                    ),
-                    thread_ts=thread_ts,
-                )
-
-            # Check if this tool has a trainee message to send
-            if "trainee_message" in machine_info.keys() and action == "add":
-                logging.info(f"Sending trainee message for {machine_info['name']}")
-
-                if machine_info["trainee_message"] in strings.trainee_messages:
-                    message = strings.trainee_messages[machine_info["trainee_message"]]
-
-                    message = message.format(
-                        trainer=body["user"]["id"],
-                        trainee_slack_id=slack_id,
-                        trainee_tidyhq_id=user,
-                        trainee_name=user_name,
-                        machine=machine_info["name"],
-                    )
-
-                    # Send the message to the trainee
-                    if slack_id:
-                        slackUtils.send(message=message, app=app, slack_id=slack_id)
-
-                    # Add a note to the sign off message
-                    if thread_ts:
-                        slackUtils.send(
-                            app=app,
-                            channel=config["slack"]["notification_channel"],
-                            message=f"A post training message has been sent to {user_name}",
-                            thread_ts=thread_ts,
-                        )
-                else:
-                    logging.error(
-                        f"Trainee message {machine_info['trainee_message']} not found in strings.trainee_messages"
-                    )
-
+            if machine_info.get("children", False):
+                children += machine_info["children"].split(",")
+            if machine_info.get("exclusive_with", False):
+                exclusive += machine_info["exclusive_with"].split(",")
         else:
             logging.error(f"Failed to {action} {user} for {machine}")
+
+    # Handle children
+    # These are groups that should be added when the parent is added
+    for machine in set(children):
+        success = tidyhq.update_group_membership(
+            tidyhq_id=user, group_id=machine, action=action, config=config
+        )
+        if success:
+            machine_info = tidyhq.get_group_info(id=machine, cache=cache, config=config)
+
+            slackUtils.notify_training(
+                action=action,
+                trainee=user,
+                trainee_formatted=user_name,
+                trainee_slack_id=slack_id,
+                machine_info=machine_info,
+                tidyhq_cache=cache,
+                config=config,
+                trainer=body["user"]["id"],
+                app=app,
+            )
+        else:
+            logging.error(f"Failed to {action} {user} for {machine}")
+
+    # Handle exclusive groups
+    # These are groups that should be removed when the current group is added
+    if action == "add":
+        for machine in set(exclusive):
+            success = tidyhq.update_group_membership(
+                tidyhq_id=user, group_id=machine, action="remove", config=config
+            )
+            if success:
+                machine_info = tidyhq.get_group_info(
+                    id=machine, cache=cache, config=config
+                )
+
+                slackUtils.notify_training(
+                    action="remove",
+                    trainee=user,
+                    trainee_formatted=user_name,
+                    trainee_slack_id=slack_id,
+                    machine_info=machine_info,
+                    tidyhq_cache=cache,
+                    config=config,
+                    trainer=body["user"]["id"],
+                    app=app,
+                )
+            else:
+                logging.error(f"Failed to remove {user} for {machine}")
 
     # Get the time debt if provided
     hours = (

@@ -4,7 +4,10 @@ from copy import deepcopy as copy
 from slack_sdk.web.client import WebClient  # for typing
 from slack_bolt import App  # for typing
 from pprint import pprint
+
+from editable_resources import strings
 from . import formatters, blocks, tidyhq
+import time
 
 
 # Set up logging
@@ -241,3 +244,89 @@ def is_trainer(user, client, config):
             if user in group["users"]:
                 return True
     return False
+
+
+def notify_training(
+    action: str,
+    trainee: str,
+    trainee_formatted: str,
+    trainee_slack_id: str | None,
+    machine_info: dict,
+    tidyhq_cache: dict,
+    config: dict,
+    trainer: str,
+    app: App,
+) -> bool:
+    """Notify Slack channel and trainee of training changes."""
+
+    message = f"{'✅' if action == 'add' else '🚫'}{trainee_formatted} has been {'authorised' if action == 'add' else 'deauthorised'} for {machine_info['name']} ({machine_info.get('level', '⚪')}) by <@{trainer}>"
+
+    # Send a notification to the training channel
+    thread_ts = send(
+        app=app,
+        channel=config["slack"]["notification_channel"],
+        message=message,
+        metadata={
+            "event_type": f"training_{action}",
+            "event_payload": {
+                "trainer": trainer,
+                "operator": trainee,
+                "machine": machine_info["id"],
+                "action": action,
+            },
+        },
+    )
+
+    # Log the change to file
+    with open("tidyhq_changes.log", "a") as f:
+        f.write(f"{time.time()},{trainer},{action},{trainee},{machine_info['id']}\n")
+
+    # Check if this tool requires a follow up check in
+    if "first_use_check_in" in machine_info.keys() and action == "add":
+        send(
+            app=app,
+            channel=config["slack"]["notification_channel"],
+            message="This tool needs a follow up",
+            blocks=formatters.follow_up_buttons(
+                machine=machine_info,
+                follow_up_days=machine_info["first_use_check_in"],
+                operator_id=trainee_slack_id if trainee_slack_id else trainee,
+                trainer_id=trainer,
+                has_slack=trainee_slack_id is not None,
+            ),
+            thread_ts=thread_ts,
+        )
+
+    # Check if this tool has a trainee message to send
+    if "trainee_message" in machine_info.keys() and action == "add":
+        logging.info(f"Sending trainee message for {machine_info['name']}")
+
+        if machine_info["trainee_message"] in strings.trainee_messages:
+            message = strings.trainee_messages[machine_info["trainee_message"]]
+
+            message = message.format(
+                trainer=trainer,
+                trainee_slack_id=trainee_slack_id,
+                trainee_tidyhq_id=trainee,
+                trainee_name=trainee_formatted,
+                machine=machine_info["name"],
+            )
+
+            # Send the message to the trainee
+            if trainee_slack_id:
+                send(message=message, app=app, slack_id=trainee_slack_id)
+
+            # Add a note to the sign off message
+            if thread_ts:
+                send(
+                    app=app,
+                    channel=config["slack"]["notification_channel"],
+                    message=f"A post training message has been sent to {trainee_formatted}",
+                    thread_ts=thread_ts,
+                )
+        else:
+            logging.error(
+                f"Trainee message {machine_info['trainee_message']} not found in strings.trainee_messages"
+            )
+
+    return True

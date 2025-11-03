@@ -176,16 +176,20 @@ def select_user(ack, body, client):
 def add_training(ack, body, client):
     ack()
 
+    # Get selected user (if any)
+    try:
+        user = list(body["view"]["state"]["values"].values())[0]["select_user"][
+            "selected_option"
+        ]["value"]
+    except TypeError:
+        # No user has been selected, don't do anything
+        return
+
     # Send a placeholder modal while we gather data
     v = app.client.views_push(
         trigger_id=body["trigger_id"],
         view=formatters.placeholder_modal(),
     )
-
-    # Get selected user
-    user = list(body["view"]["state"]["values"].values())[0]["select_user"][
-        "selected_option"
-    ]["value"]
 
     modal = formatters.trainer_change_authed_machines_modal(
         user=user,
@@ -208,18 +212,20 @@ def add_training(ack, body, client):
 def remove_training(ack, body, client):
     ack()
 
+    # Get selected user (if any)
+    try:
+        user = list(body["view"]["state"]["values"].values())[0]["select_user"][
+            "selected_option"
+        ]["value"]
+    except TypeError:
+        # No user has been selected, don't do anything
+        return
+
     # Send a placeholder modal while we gather data
     v = app.client.views_push(
         trigger_id=body["trigger_id"],
         view=formatters.placeholder_modal(),
     )
-
-    # Get selected user
-    user = list(body["view"]["state"]["values"].values())[0]["select_user"][
-        "selected_option"
-    ]["value"]
-
-    view_id = body["view"]["id"]
 
     modal = formatters.trainer_change_authed_machines_modal(
         user=user,
@@ -414,8 +420,6 @@ def check_user_training(ack, body, client):
     user = list(body["view"]["state"]["values"].values())[0]["select_user"][
         "selected_option"
     ]["value"]
-
-    view_id = body["view"]["id"]
 
     modal = formatters.trainer_check_authed_machines_modal(
         user=user,
@@ -711,18 +715,16 @@ def checkin_remove(ack, body, logger):
         logging.info(f"{action}'d {contact_id} for {machine_id}")
         # Get info to construct message
         machine_info = tidyhq.get_group_info(id=machine_id, cache=cache, config=config)
-        user_contact = contact = tidyhq.get_contact(contact_id=contact_id, cache=cache)
+        user_contact = tidyhq.get_contact(contact_id=contact_id, cache=cache)
         if user_contact:
             user_name = tidyhq.format_contact(contact=user_contact)
-            # Check for a slack user ID
-            slack_id = operator_id
         else:
             user_name = "UNKNOWN"
 
         # Construct message
         message = f'🚫{user_name} has been "deauthorised" for {machine_info["name"]} ({machine_info.get("level", "⚪")}) by <@{body["user"]["id"]}> after following up with the operator'
 
-        thread_ts = slackUtils.send(
+        slackUtils.send(
             app=app,
             channel=config["slack"]["notification_channel"],
             message=message,

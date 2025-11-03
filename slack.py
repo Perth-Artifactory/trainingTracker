@@ -83,26 +83,41 @@ cat_pattern = re.compile("category-.*")
 def check_own_training(ack, body, client):
     ack()
 
+    # Send a placeholder modal while we gather data
+    v = app.client.views_open(
+        trigger_id=body["trigger_id"],
+        view=formatters.placeholder_modal(),
+    )
+
     global cache
     cache = tidyhq.fresh_cache(cache=cache, config=config)
 
     # Get the category from the action ID
     category = body["actions"][0]["value"]
-    slackUtils.authed_tools_modal(
+
+    modal = formatters.authed_machines_modal(
         user=body["user"]["id"],
         config=config,
         client=client,
         cache=cache,
         categories=[category],
-        trigger=body["trigger_id"],
         machine_list=machine_list,
+    )
+    app.client.views_update(
+        view_id=v["view"]["id"],  # type: ignore
+        view=modal,
     )
 
 
 @app.view("filter_authed_tools_modal")
 def filter_authed_tools_modal(ack, body, client):
     ack()
-    # pprint(body)
+
+    # Send a placeholder modal while we gather data
+    v = app.client.views_open(
+        trigger_id=body["trigger_id"],
+        view=formatters.placeholder_modal(),
+    )
 
     global cache
     cache = tidyhq.fresh_cache(cache=cache, config=config)
@@ -116,15 +131,17 @@ def filter_authed_tools_modal(ack, body, client):
                 for option in states[state][field]["selected_options"]:
                     categories.append(option["value"])
 
-    # pprint(categories)
-    slackUtils.authed_tools_modal(
+    modal = formatters.authed_machines_modal(
         user=body["user"]["id"],
         config=config,
         client=client,
         cache=cache,
         categories=categories,
-        trigger=body["trigger_id"],
         machine_list=machine_list,
+    )
+    app.client.views_update(
+        view_id=v["view"]["id"],  # type: ignore
+        view=modal,
     )
 
 
@@ -133,44 +150,70 @@ def filter_authed_tools_modal(ack, body, client):
 def select_user(ack, body, client):
     ack()
 
+    # Send a placeholder modal while we gather data
+    v = app.client.views_open(
+        trigger_id=body["trigger_id"],
+        view=formatters.placeholder_modal(),
+    )
+
     global cache
     cache = tidyhq.fresh_cache(cache=cache, config=config)
 
-    slackUtils.select_user_modal(
+    modal = formatters.select_users_modal(
         user=body["user"]["id"],
         config=config,
         client=client,
         cache=cache,
-        trigger=body["trigger_id"],
+    )
+
+    app.client.views_update(
+        view_id=v["view"]["id"],  # type: ignore
+        view=modal,
     )
 
 
 @app.action("trainer-add_training")
 def add_training(ack, body, client):
+    ack()
+
+    # Send a placeholder modal while we gather data
+    v = app.client.views_push(
+        trigger_id=body["trigger_id"],
+        view=formatters.placeholder_modal(),
+    )
+
     # Get selected user
     user = list(body["view"]["state"]["values"].values())[0]["select_user"][
         "selected_option"
     ]["value"]
 
-    view_id = body["view"]["id"]
-
-    slackUtils.trainer_change_authed_machines_modal(
+    modal = formatters.trainer_change_authed_machines_modal(
         user=user,
         config=config,
         client=client,
         cache=cache,
-        trigger=body["trigger_id"],
         machine_list=machine_list,
         action="add",
-        view_id=view_id,
     )
-    ack()
+
+    modal["private_metadata"] = f"add-{user}"
+
+    app.client.views_update(
+        view_id=v["view"]["id"],  # type: ignore
+        view=modal,
+    )
 
 
 @app.action("trainer-remove_training")
 def remove_training(ack, body, client):
     ack()
 
+    # Send a placeholder modal while we gather data
+    v = app.client.views_push(
+        trigger_id=body["trigger_id"],
+        view=formatters.placeholder_modal(),
+    )
+
     # Get selected user
     user = list(body["view"]["state"]["values"].values())[0]["select_user"][
         "selected_option"
@@ -178,15 +221,20 @@ def remove_training(ack, body, client):
 
     view_id = body["view"]["id"]
 
-    slackUtils.trainer_change_authed_machines_modal(
+    modal = formatters.trainer_change_authed_machines_modal(
         user=user,
         config=config,
         client=client,
         cache=cache,
-        trigger=body["trigger_id"],
         machine_list=machine_list,
         action="remove",
-        view_id=view_id,
+    )
+
+    modal["private_metadata"] = f"remove-{user}"
+
+    app.client.views_update(
+        view_id=v["view"]["id"],  # type: ignore
+        view=modal,
     )
 
 
@@ -356,6 +404,12 @@ def ignore_individual_checkbox(ack, body, logger):
 def check_user_training(ack, body, client):
     ack()
 
+    # Send a placeholder modal while we gather data
+    v = app.client.views_open(
+        trigger_id=body["trigger_id"],
+        view=formatters.placeholder_modal(),
+    )
+
     # Get selected user
     user = list(body["view"]["state"]["values"].values())[0]["select_user"][
         "selected_option"
@@ -363,14 +417,17 @@ def check_user_training(ack, body, client):
 
     view_id = body["view"]["id"]
 
-    slackUtils.trainer_authed_tools_modal(
+    modal = formatters.trainer_check_authed_machines_modal(
         user=user,
         config=config,
         client=client,
         cache=cache,
-        trigger=body["trigger_id"],
         machine_list=machine_list,
-        view_id=view_id,
+    )
+
+    app.client.views_update(
+        view_id=v["view"]["id"],  # type: ignore
+        view=modal,
     )
 
 
@@ -378,22 +435,37 @@ def check_user_training(ack, body, client):
 def check_tool_training(ack, body, client):
     ack()
 
+    # Send a placeholder modal while we gather data
+    v = app.client.views_open(
+        trigger_id=body["trigger_id"],
+        view=formatters.placeholder_modal(),
+    )
+
     global cache
     cache = tidyhq.fresh_cache(cache=cache, config=config)
 
-    slackUtils.tool_selector_modal(
+    modal = formatters.tool_selector_modal(
         config=config,
         client=client,
         cache=cache,
-        trigger=body["trigger_id"],
         machine_list=machine_list,
+    )
+
+    app.client.views_update(
+        view_id=v["view"]["id"],  # type: ignore
+        view=modal,
     )
 
 
 @app.view("tool_selector_modal")
 def handle_view_submission_events(ack, body, client):
     ack()
-    # pprint(body)
+
+    # Send a placeholder modal while we gather data
+    v = app.client.views_open(
+        trigger_id=body["trigger_id"],
+        view=formatters.placeholder_modal(),
+    )
 
     # Get selected option
     choice = list(body["view"]["state"]["values"].values())[0]["tool_selector"][
@@ -402,26 +474,45 @@ def handle_view_submission_events(ack, body, client):
     # We added the category to this value earlier to create a unique value but we don't need it now
     machine = choice.split("-")[0]
 
-    slackUtils.machine_report_modal(
-        config=config,
-        client=client,
-        cache=cache,
-        trigger=body["trigger_id"],
-        machine_list=machine_list,
-        machine=machine,
-        view_id=body["view"]["id"],
+    modal = formatters.machine_report_modal(
+        config=config, cache=cache, machine_list=machine_list, machine=machine
+    )
+    app.client.views_update(
+        view_id=v["view"]["id"],  # type: ignore
+        view=modal,
     )
 
 
 @app.action("trainer-refresh")
 def refresh_tidyhq(ack, body, client):
     ack()
+
+    # Send a placeholder message while we refresh data
+    v = app.client.views_open(
+        trigger_id=body["trigger_id"],
+        view=formatters.placeholder_modal(
+            text="Refreshing TidyHQ data. This may take a moment but you can close this window if you like."
+        ),
+    )
+
+    # Start counting time
+    start_time = time.time()
+
     logging.info(f"User {body['user']['id']} refreshed data from TidyHQ")
     global cache
     cache = tidyhq.fresh_cache(config=config, force=True)
     # Refresh the user's home
     slackUtils.updateHome(
         user=body["user"]["id"], client=client, config=config, cache=cache
+    )
+
+    # Let the user know the update was successful
+    elapsed_time = time.time() - start_time
+    app.client.views_update(
+        view_id=v["view"]["id"],  # type: ignore
+        view=formatters.placeholder_modal(
+            text=strings.tidyhq_update_complete.format(elapsed_time)
+        ),
     )
 
 

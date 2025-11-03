@@ -93,83 +93,6 @@ def updateHome(
     client.views_publish(user_id=user, view=home_view)
 
 
-def authed_tools_modal(user, config, client, cache, categories, trigger, machine_list):
-    modal = formatters.authed_machines_modal(
-        user=user,
-        config=config,
-        client=client,
-        cache=cache,
-        categories=categories,
-        machine_list=machine_list,
-    )
-
-    client.views_open(trigger_id=trigger, view=modal)
-
-
-def trainer_authed_tools_modal(
-    user, config, client, cache, trigger, machine_list, view_id=None
-):
-    modal = formatters.trainer_check_authed_machines_modal(
-        user=user,
-        config=config,
-        client=client,
-        cache=cache,
-        machine_list=machine_list,
-    )
-
-    client.views_open(trigger_id=trigger, view=modal)
-
-
-def trainer_change_authed_machines_modal(
-    user, config, client, cache, trigger, machine_list, action, view_id
-):
-    modal = formatters.trainer_change_authed_machines_modal(
-        user=user,
-        config=config,
-        client=client,
-        cache=cache,
-        machine_list=machine_list,
-        action=action,
-    )
-
-    if modal:
-        modal["private_metadata"] = f"{action}-{user}"
-
-        client.views_push(trigger_id=trigger, view=modal)
-
-
-def select_user_modal(user, config, client, cache, trigger):
-    modal = formatters.select_users_modal(
-        user=user,
-        config=config,
-        client=client,
-        cache=cache,
-    )
-
-    client.views_open(trigger_id=trigger, view=modal)
-
-
-def tool_selector_modal(config, client, cache, trigger, machine_list):
-    modal = formatters.tool_selector_modal(
-        config=config,
-        client=client,
-        cache=cache,
-        machine_list=machine_list,
-    )
-
-    client.views_open(trigger_id=trigger, view=modal)
-
-
-def machine_report_modal(
-    config, client, cache, trigger, machine_list, machine, view_id
-):
-    modal = formatters.machine_report_modal(
-        config=config, cache=cache, machine_list=machine_list, machine=machine
-    )
-
-    client.views_open(trigger_id=trigger, view=modal)
-
-
 def get_name(id, client: WebClient) -> str:
     r = client.users_info(user=id)
     return r.data["user"]["profile"]["display_name"]  # type: ignore
@@ -329,3 +252,37 @@ def notify_training(
             )
 
     return True
+
+
+def loading_button(body: dict) -> dict:
+    """Takes the body of a view_submission and returns a constructed view with the appropriate button updated with a loading button"""
+
+    patching_block = body["actions"][0]
+
+    new_blocks = []
+
+    for block in body["view"]["blocks"]:
+        if block["block_id"] == patching_block["block_id"]:
+            for element in block["elements"]:
+                if element["action_id"] == patching_block["action_id"]:
+                    element["text"]["text"] = (
+                        ":loading-disc: " + element["text"]["text"]
+                    )
+            new_blocks.append(block)
+        else:
+            new_blocks.append(block)
+
+    view = {
+        "type": "modal",
+        "callback_id": body["view"]["callback_id"],
+        "title": body["view"]["title"],
+        "blocks": new_blocks,
+        "clear_on_close": True,
+    }
+
+    if body["view"].get("submit"):
+        view["submit"] = body["view"]["submit"]
+    if body["view"].get("close"):
+        view["close"] = body["view"]["close"]
+
+    return view

@@ -54,6 +54,9 @@ Please indicate:
 checkin_induction_approved = "Your {} induction has been maintained. Unless something changes about the tool or we identify it's been a long time since you've used it I won't contact you about it again."
 checkin_induction_rejected = "Unfortunately your {} induction has been revoked. Please arrange with a trainer to undergo a refresher induction before using this tool again."
 
+tidyhq_update_complete = (
+    "Data updated from TidyHQ in {:.1f} seconds. (You can close this message)"
+)
 
 trainee_messages = {}
 trainee_messages[

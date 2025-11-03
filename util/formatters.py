@@ -611,7 +611,6 @@ def trainer_change_authed_machines_modal(
         logging.error(
             f"Invalid action {action} for function trainer_change_authed_machines_modal"
         )
-        return None
 
     block_list: list[dict] = []
 
@@ -908,3 +907,39 @@ def follow_up_buttons(machine, follow_up_days, operator_id, trainer_id, has_slac
         )
 
     return block_list
+
+
+def placeholder_modal(text: str = "Loading... :loading-disc:") -> dict:
+    """Returns a placeholder loading modal"""
+
+    block_list = []
+    block_list = slackUtils.add_block(block_list, blocks.text)
+    block_list = slackUtils.inject_text(
+        block_list=block_list,
+        text=text,
+    )
+
+    # Create modal
+    modal = copy(blocks.modal)
+    modal["title"]["text"] = "Loading..."
+    modal["blocks"] = block_list
+    modal["callback_id"] = "placeholder_modal"
+    return modal
+
+
+def tidyhq_update_modal(time_taken):
+    """Returns a modal to let the user know when updates from TidyHQ have been completed"""
+
+    block_list = []
+    block_list = slackUtils.add_block(block_list, blocks.text)
+    block_list = slackUtils.inject_text(
+        block_list=block_list,
+        text=strings.tidyhq_update_complete.format(time_taken),
+    )
+
+    # Create modal
+    modal = copy(blocks.modal)
+    modal["title"]["text"] = "TidyHQ Update Complete"
+    modal["blocks"] = block_list
+    modal["callback_id"] = "tidyhq_update_complete_modal"
+    return modal

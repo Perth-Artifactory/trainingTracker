@@ -45,7 +45,7 @@ Track member tool/equipment inductions through Slack using TidyHQ as a backend.
 
 Formats a markdown table of approved operators based on whether a contact is in a configured TidyHQ group.
 
-Passing the special report name "all" will generate a report including a deduplicated list of all other reports. Specific groups can be excluded from this report by adding them to the special "exclude" group.
+Passing the special report name "all" will generate a report including a deduplicated list of all other reports. Specific groups can be excluded from this report by adding them to the special "exclude" category.
 
 `markdown_report.py` will output a list of possible reports including their contents with human readable names rather than just IDs. The script will exit with an error code to catch it being executed without a report name accidentally in automations.
 
@@ -70,3 +70,15 @@ This bot includes various functions for users and trainers.
 
 * **-v** - Debug/verbose mode
 * **-c** - Update all user homes, designed to be run as a cronjob to decrease loading times for new users
+
+## Defining sign offs
+
+Sign offs are defined purely through TidyHQ groups with group metadata stored in the group description. Each config parameter should be on it's own line with the format `key=value`. Use comma separated lists for keys that support multiple values.
+
+* `categories` - Which categories the induction should show up under. The complete list of categories are built dynamically from these lists so try to avoid typos.
+* `level` - Which level a tool is in. Despite appearances within the app probationary (🅿️) groups are not defined here. (Add a 🅿️ to the sign off name instead)
+* `training` - A string detailing how to get training on a particular tool (typically when that process is different from normal). Only shown when the viewer does not have the sign off.
+* `exclusive_with` - A list of sign off IDs that are incompatible with the current sign off. When **the current** sign off is added all sign offs specified here are removed. (Use this to automatically remove probationary sign offs when the full sign off is completed)
+* `children` - When **the current** sign off is added also add the sign offs specified here.
+* `first_use_check_in` - How many days after the sign off is complete should the bot check in with the user/trainer *(in progress)*
+* `url` - Deprecated

@@ -17,6 +17,18 @@ logger = logging.getLogger("formatters")
 
 
 def home(user, config, client, cache, machine_raw):
+    complete_section_emoji_map = {
+        "3d": ":3d-printer:",
+        "air": ":dash:",
+        "wood": ":deciduous_tree:",
+        "metal": ":compression:",
+        "electronics": ":bulb:",
+        "laser": ":laser_beam:",
+        "craft": ":sewing_needle:",
+        "fire": ":fire:",
+        "org": ":artifactory2-black-fringed:",
+    }
+
     block_list: list[dict] = []
 
     # Header
@@ -73,7 +85,9 @@ def home(user, config, client, cache, machine_raw):
             if category in authed_machines:
                 button_text = f"{category.capitalize()} ({len(authed_machines[category])}/{total})"
                 if len(authed_machines[category]) == total:
-                    button_text += " ⭐"
+                    button_text += (
+                        f" {complete_section_emoji_map.get(category.lower(), ':star:')}"
+                    )
             else:
                 button_text = f"{category.capitalize()} (0/{total})"
         else:

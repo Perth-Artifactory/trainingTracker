@@ -16,13 +16,8 @@ from editable_resources import strings
 logger = logging.getLogger("formatters")
 
 
-def home(user, config, client, cache, machine_raw=None):
+def home(user, config, client, cache, machine_raw):
     block_list: list[dict] = []
-
-    if not machine_raw:
-        # Load machine definitions from file
-        with open("machines.json", "r") as f:
-            machine_raw = json.load(f)
 
     # Header
     block_list = home_header(block_list)

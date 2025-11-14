@@ -78,7 +78,7 @@ def updateHome(
     client: WebClient,
     config,
     cache,
-    machine_raw=None,
+    machine_raw,
 ) -> None:
     home_view = {
         "type": "home",

@@ -9,7 +9,7 @@ import logging
 from pprint import pprint
 from typing import Any
 
-from util import tidyhq
+from util import tidyhq, machines
 
 # Set up logging
 logging.basicConfig(level=logging.DEBUG)
@@ -18,12 +18,10 @@ logging.basicConfig(level=logging.DEBUG)
 with open("config.json") as f:
     config: dict = json.load(f)
 
-# Load the list of reports from file
-with open("machines.json") as f:
-    reports: dict = json.load(f)
-
 cache = tidyhq.fresh_cache(config=config)
 
+# Build the list of reports from TidyHQ
+reports = machines.build_from_tidyhq(config=config, cache=cache)
 
 if len(sys.argv) < 2:
     print("Usage: python3 operator_report.py [report name]")
@@ -34,13 +32,13 @@ if len(sys.argv) < 2:
         print(f"{report}")
         for group in reports[report]:
             info = tidyhq.get_group_info(cache=cache, id=group, config=config)
-            print(f'\t{info["name"]} ({group})')
+            print(f"\t{info['name']} ({group})")
             for field in info:
                 if field != "name":
                     print(f"\t\t{field}: {info[field]}")
         print("")
     print(
-        "You can also use 'all' to get a list of operators from all groups. Each group will only be listed once and specific groups can be excluded by adding them to the 'exclude' list in machines.json"
+        "You can also use 'all' to get a list of operators from all groups. Each group will only be listed once and you can exclude groups by adding them to the exclude category"
     )
 
     sys.exit(1)
@@ -76,7 +74,8 @@ for group in report:
     machine_name = info["name"]
     machines.append(machine_name)
     for contact in tidyhq.find_users_in_group(
-        group_id=group, contacts=cache["contacts"]  # type: ignore
+        group_id=group,
+        contacts=cache["contacts"],  # type: ignore
     ):
         contact_name = tidyhq.format_contact(contact=contact)
         if contact_name not in contacts_indexed:
@@ -100,15 +99,15 @@ header = "| Operator | "
 for machine in machines:
     info = tidyhq.get_group_info(name=machine, cache=cache, config=config)
     if "url" in info:
-        header += f'[{info["name"]}]({info["url"]}) {info.get("level","")}| '
+        header += f"[{info['name']}]({info['url']}) {info.get('level', '')}| "
     else:
-        header += f'{info["name"]} {info.get("level","")}| '
+        header += f"{info['name']} {info.get('level', '')}| "
 
 lines = [header]
 
 
 # Add separator
-lines.append(f'| --- | {" | ".join(["---"] * len(machines))} |')
+lines.append(f"| --- | {' | '.join(['---'] * len(machines))} |")
 
 # Add each operator as a line
 for operator in sorted(contacts_indexed):

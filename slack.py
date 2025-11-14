@@ -15,7 +15,7 @@ from slack_bolt.adapter.socket_mode import SocketModeHandler
 from slack_sdk.web.client import WebClient  # for typing
 from slack_sdk.web.slack_response import SlackResponse  # for typing
 
-from util import blocks, formatters, misc, slackUtils, tidyhq
+from util import blocks, formatters, misc, slackUtils, tidyhq, machines
 from editable_resources import strings
 
 # Split up command line arguments
@@ -59,7 +59,13 @@ def app_home_opened(event: dict[str, Any], client: WebClient, ack) -> None:
     ack()
     global cache
     cache = tidyhq.fresh_cache(cache=cache, config=config)
-    slackUtils.updateHome(user=event["user"], client=client, config=config, cache=cache)  # type: ignore
+    slackUtils.updateHome(
+        user=event["user"],
+        client=client,
+        config=config,
+        cache=cache,
+        machine_raw=machine_list,
+    )  # type: ignore
 
 
 @app.action("refresh_home")
@@ -72,7 +78,8 @@ def refresh_home(ack, body, client):
         client=client,
         config=config,
         cache=cache,
-    )  # type: ignore
+        machine_raw=machine_list,
+    )
 
 
 # Category buttons
@@ -507,7 +514,11 @@ def refresh_tidyhq(ack, body, client):
     cache = tidyhq.fresh_cache(config=config, force=True)
     # Refresh the user's home
     slackUtils.updateHome(
-        user=body["user"]["id"], client=client, config=config, cache=cache
+        user=body["user"]["id"],
+        client=client,
+        config=config,
+        cache=cache,
+        machine_raw=machine_list,
     )
 
     # Let the user know the update was successful
@@ -775,14 +786,13 @@ def checkin_remove(ack, body, logger):
 logger.info("Getting TidyHQ data from cache")
 
 cache = tidyhq.fresh_cache(config=config)
-
-logger.info("Loading machine categories")
-with open("machines.json", "r") as f:
-    machine_list: dict = json.load(f)
-
 logger.debug(
     f"Loaded {len(cache['contacts'])} contacts and {len(cache['groups'])} groups"
 )
+
+# Construct machine list
+logger.info("Constructing machine list")
+machine_list = machines.build_from_tidyhq(cache=cache, config=config)
 
 # Get our user ID
 info = app.client.auth_test()

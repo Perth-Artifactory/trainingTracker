@@ -2,14 +2,12 @@ import json
 from . import tidyhq
 import logging
 
+# Set up logging
+logger = logging.getLogger("machines")
 
-def all(cache, config, machines=None):
-    # Load the list of reports from file
-    if not machines:
-        with open("machines.json", "r") as f:
-            categories: dict = json.load(f)
-    else:
-        categories = machines
+
+def all(cache, config, machines):
+    categories = machines
     rich_categories = {}
     for category in categories:
         if category != "exclude":
@@ -27,13 +25,8 @@ def all(cache, config, machines=None):
     return rich_categories
 
 
-def user(id, cache, config, machines=None):
-    # Load the list of reports from file
-    if not machines:
-        with open("machines.json") as f:
-            categories: dict = json.load(f)
-    else:
-        categories = machines
+def user(id, cache, config, machines):
+    categories = machines
 
     # Check whether id is a Slack ID or a TidyHQ ID
     if id.startswith("U"):
@@ -71,3 +64,32 @@ def user(id, cache, config, machines=None):
 def machine(machine_id, cache):
     users = tidyhq.find_users_in_group(group_id=machine_id, contacts=cache["contacts"])
     return users
+
+
+def build_from_tidyhq(cache: dict, config: dict) -> dict[str, list[int]]:
+    """Build a machine list from TidyHQ groups."""
+
+    machine_list = {}
+    machine_count = 0
+    for group_id in cache["groups"]:
+        # filter to only those that are current operator groups
+        if cache["groups"][group_id]["label"].startswith(
+            config["tidyhq"]["group_prefix"]
+        ):
+            machine_info = tidyhq.get_group_info(
+                id=group_id, cache=cache, config=config
+            )
+            current_categories = machine_info.get("categories", None)
+            if not current_categories:
+                continue
+            else:
+                machine_count += 1
+                for section in current_categories.split(","):
+                    if section not in machine_list:
+                        machine_list[section] = []
+                    machine_list[section].append(int(group_id))
+    logger.info(
+        f"Constructed machine list with {machine_count} machines in {len(machine_list)} categories"
+    )
+
+    return machine_list
